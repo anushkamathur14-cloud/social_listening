@@ -92,6 +92,10 @@ export function applyComplianceFixes(
     copy: result.fixedCopy ?? creative.copy,
     headline: result.fixedHeadline ?? creative.headline,
     attribution: config.copyrightAttribution,
-    complianceStatus: result.autoFixes.length > 0 ? "fixed" : "passed",
+    complianceStatus: result.passed
+      ? result.autoFixes.length > 0
+        ? "fixed"
+        : "passed"
+      : "blocked",
   };
 }

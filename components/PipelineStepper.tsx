@@ -22,7 +22,7 @@ const STAGE_HELP: Record<PipelineStage, string> = {
   detect: "A signal crossed a threshold (weather, traffic, trend, or Reddit thread).",
   generate: "AI writes ad variants tailored to the signal, city, and persona.",
   validate: "Rules engine checks copy length, blocked words, and attribution.",
-  launch: "Simulated deploy to Meta or Smartly via adapter (demo = fake IDs, no spend).",
+  launch: "Awaiting your approval — publish routes to the channel adapter (Smartly, Meta, Google, DV360).",
   optimize: "Mock metrics rank variants — pause losers, scale winners.",
 };
 
@@ -55,12 +55,11 @@ export function PipelineStepper({ events }: PipelineStepperProps) {
       <div className="rounded-lg border border-cyan-900/40 bg-cyan-950/20 p-3 text-xs text-zinc-300">
         <p className="font-medium text-cyan-300 mb-1">How the pipeline works</p>
         <p className="leading-relaxed">
-          1. <strong>Signal</strong> arrives from a real or mock source → 2.{" "}
-          <strong>Trigger</strong> fires if rules match → 3.{" "}
-          <strong>Creatives</strong> generated per persona → 4.{" "}
-          <strong>Compliance</strong> validates → 5.{" "}
-          <strong>Launch</strong> simulates ad deploy → 6.{" "}
-          <strong>Optimizer</strong> reads performance and scales winners.
+          1. <strong>Crawl</strong> sources for selected cities → 2.{" "}
+          <strong>Generate</strong> channel-specific creatives (image or text) → 3.{" "}
+          <strong>Validate</strong> compliance → 4.{" "}
+          <strong>You approve</strong> → 5.{" "}
+          <strong>Publish</strong> via Smartly / Meta / Google Ads (simulated in demo).
         </p>
         {latestTrigger && (
           <p className="mt-2 text-zinc-400">

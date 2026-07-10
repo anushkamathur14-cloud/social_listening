@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { config, parseActiveMarkets } from "../config";
-import { generateCreatives, generateIncrementalVariant } from "../creative/generator";
+import { config, parseActiveMarkets, parseChannels } from "../config";
+import { DEFAULT_ACTIVE_MARKETS } from "../markets";
+import { DEFAULT_CHANNELS } from "../channels";
+import { generateCreatives } from "../creative/generator";
 import { applyComplianceFixes, validateCreative } from "../compliance/rules";
 import { db, initDb } from "../db/client";
 import { campaigns, creatives, pipelineRuns, settings } from "../db/schema";
-import { approveCampaign, simulateDeploy } from "../deploy/simulator";
+import { publishToChannel } from "../deploy/publisher";
 import { broadcaster } from "../events/broadcaster";
 import { optimizeCampaigns } from "../optimize/simulator";
 import { fetchRedditSignals } from "../signals/reddit";
@@ -19,6 +21,7 @@ import {
   persistTrigger,
 } from "../triggers/engine";
 import type {
+  Channel,
   DemoSettings,
   Market,
   PipelineStage,
@@ -28,6 +31,7 @@ import type {
 
 let pipelinePaused = false;
 let activeMarkets: Market[] = config.defaultActiveMarkets;
+let selectedChannels: Channel[] = DEFAULT_CHANNELS;
 let optimizerInterval: ReturnType<typeof setInterval> | null = null;
 let pollerInterval: ReturnType<typeof setInterval> | null = null;
 let initialized = false;
@@ -45,6 +49,7 @@ async function loadSettings() {
   for (const row of rows) {
     if (row.key === "pipelinePaused") pipelinePaused = row.value === "true";
     if (row.key === "activeMarkets") activeMarkets = parseActiveMarkets(row.value);
+    if (row.key === "selectedChannels") selectedChannels = parseChannels(row.value);
   }
 }
 
@@ -67,6 +72,7 @@ export async function setPipelinePaused(paused: boolean) {
 
 export async function setActiveMarkets(markets: Market[]) {
   activeMarkets = markets.filter((m) => config.markets.includes(m));
+  if (activeMarkets.length === 0) activeMarkets = DEFAULT_ACTIVE_MARKETS;
   await saveSetting("activeMarkets", JSON.stringify(activeMarkets));
 }
 
@@ -74,12 +80,29 @@ export function getActiveMarkets(): Market[] {
   return activeMarkets;
 }
 
+export async function setSelectedChannels(channels: Channel[]) {
+  selectedChannels = channels.length > 0 ? channels : DEFAULT_CHANNELS;
+  await saveSetting("selectedChannels", JSON.stringify(selectedChannels));
+}
+
+export function getSelectedChannels(): Channel[] {
+  return selectedChannels;
+}
+
+function signalInActiveMarkets(signal: Signal): boolean {
+  if (signal.market === "US") {
+    return activeMarkets.length > 0;
+  }
+  return activeMarkets.includes(signal.market);
+}
+
 async function emitStage(
   runId: string,
   triggerId: string,
   stage: PipelineStage,
   timings: Partial<Record<PipelineStage, number>>,
-  status: "running" | "completed" | "failed" = "running"
+  status: "running" | "completed" | "failed" = "running",
+  extra?: Record<string, unknown>
 ) {
   broadcaster.emitEvent("pipeline_stage", {
     runId,
@@ -87,6 +110,7 @@ async function emitStage(
     stage,
     status,
     timings,
+    ...extra,
   });
 }
 
@@ -96,6 +120,7 @@ export async function runPipeline(triggerId: string, signalId: string) {
   const runId = nanoid();
   const timings: Partial<Record<PipelineStage, number>> = {};
   const start = Date.now();
+  const channels = selectedChannels;
 
   await db.insert(pipelineRuns).values({
     id: runId,
@@ -118,16 +143,8 @@ export async function runPipeline(triggerId: string, signalId: string) {
     detectedAt: signalRow.detectedAt,
   };
 
-  // Stage 1: Detect (already done)
   timings.detect = Date.now() - start;
-  await emitStage(runId, triggerId, "detect", timings, "completed");
-
-  broadcaster.emitEvent("pipeline_stage", {
-    runId,
-    triggerId,
-    stage: "detect",
-    status: "completed",
-    timings,
+  await emitStage(runId, triggerId, "detect", timings, "completed", {
     signal: {
       id: signal.id,
       type: signal.type,
@@ -137,42 +154,49 @@ export async function runPipeline(triggerId: string, signalId: string) {
       sourceLabel: signal.payload.sourceLabel,
     },
     message: `Signal detected in ${signal.market}: ${signal.payload.summary}`,
+    channels,
   });
 
-  // Stage 2: Generate
   const genStart = Date.now();
-  await emitStage(runId, triggerId, "generate", timings);
-  const rawCreatives = await generateCreatives(signal, triggerId);
+  await emitStage(runId, triggerId, "generate", timings, "running", {
+    message: `Generating for channels: ${channels.join(", ")}`,
+  });
+  const rawCreatives = await generateCreatives(signal, triggerId, channels);
   timings.generate = Date.now() - genStart;
-  await emitStage(runId, triggerId, "generate", timings, "completed");
+  await emitStage(runId, triggerId, "generate", timings, "completed", {
+    message: `${rawCreatives.length} channel-specific creatives generated`,
+  });
 
-  for (const raw of rawCreatives) {
-    broadcaster.emitEvent("creative_generated", { creative: raw });
-  }
-
-  // Stage 3: Validate
   const valStart = Date.now();
   await emitStage(runId, triggerId, "validate", timings);
   const validatedCreatives = rawCreatives.map((c) => {
     const result = validateCreative(c);
     const fixed = applyComplianceFixes(c, result);
+    const forReview = {
+      ...fixed,
+      complianceStatus:
+        fixed.complianceStatus === "blocked"
+          ? ("blocked" as const)
+          : ("pending_review" as const),
+    };
     broadcaster.emitEvent("compliance_result", {
       creativeId: c.id,
       passed: result.passed,
       violations: result.violations,
       autoFixes: result.autoFixes,
-      status: fixed.complianceStatus,
+      status: forReview.complianceStatus,
     });
-    return fixed;
+    broadcaster.emitEvent("creative_generated", { creative: forReview });
+    return forReview;
   });
   timings.validate = Date.now() - valStart;
-  await emitStage(runId, triggerId, "validate", timings, "completed");
+  await emitStage(runId, triggerId, "validate", timings, "completed", {
+    message: "Creatives ready for your review — approve to publish",
+  });
 
-  const launchable = validatedCreatives.filter(
-    (c) => c.complianceStatus === "passed" || c.complianceStatus === "fixed"
-  );
-
-  for (const creative of launchable) {
+  for (const creative of validatedCreatives.filter(
+    (c) => c.complianceStatus !== "blocked"
+  )) {
     await db.insert(creatives).values({
       id: creative.id,
       triggerId: creative.triggerId,
@@ -186,56 +210,23 @@ export async function runPipeline(triggerId: string, signalId: string) {
       attribution: creative.attribution,
       complianceStatus: creative.complianceStatus,
       createdAt: creative.createdAt,
+      channel: creative.channel,
+      imageUrl: creative.imageUrl ?? null,
+      description: creative.description ?? null,
     });
   }
 
-  // Stage 4: Launch
-  const launchStart = Date.now();
-  await emitStage(runId, triggerId, "launch", timings);
-
-  for (const creative of launchable) {
-    const campaign = await simulateDeploy(creative, config.autoLaunch);
-    await db.insert(campaigns).values({
-      id: campaign.id,
-      creativeId: campaign.creativeId,
-      triggerId: campaign.triggerId,
-      platform: campaign.platform,
-      platformId: campaign.platformId,
-      status: campaign.status,
-      budget: campaign.budget,
-      targeting: campaign.targeting,
-      market: campaign.market,
-      launchedAt: campaign.launchedAt ?? null,
-    });
-    broadcaster.emitEvent("campaign_launched", { campaign, creative });
-  }
-
-  timings.launch = Date.now() - launchStart;
-  await emitStage(runId, triggerId, "launch", timings, "completed");
-
-  // Stage 5: Optimize (initial pass)
-  const optStart = Date.now();
-  await emitStage(runId, triggerId, "optimize", timings);
-  const { actions } = await optimizeCampaigns();
-  timings.optimize = Date.now() - optStart;
-  await emitStage(runId, triggerId, "optimize", timings, "completed");
-
-  // Incremental winner regeneration
-  const scaledAction = actions.find((a) => a.action === "scaled winner");
-  if (scaledAction && launchable.length > 0) {
-    const winnerCreative = launchable[0];
-    const incremental = await generateIncrementalVariant(winnerCreative, signal);
-    broadcaster.emitEvent("creative_generated", {
-      creative: incremental,
-      incremental: true,
-    });
-  }
+  // Launch stage = awaiting approval (no auto-publish)
+  timings.launch = Date.now() - start;
+  await emitStage(runId, triggerId, "launch", timings, "completed", {
+    message: "Awaiting approval — publish routes to Smartly, Meta, Google Ads, or DV360",
+  });
 
   await db
     .update(pipelineRuns)
     .set({
       status: "completed",
-      stage: "optimize",
+      stage: "launch",
       completedAt: new Date().toISOString(),
       stageTimings: JSON.stringify(timings),
     })
@@ -243,6 +234,10 @@ export async function runPipeline(triggerId: string, signalId: string) {
 }
 
 export async function processSignal(signal: Signal) {
+  if (!signalInActiveMarkets(signal)) {
+    return null;
+  }
+
   await persistSignal(signal);
   const trigger = evaluateSignal(signal);
   if (!trigger) return null;
@@ -267,7 +262,9 @@ export async function pollAllSignals() {
   for (const result of results) {
     if (result.status === "fulfilled") {
       for (const signal of result.value) {
-        await processSignal(signal);
+        if (signalInActiveMarkets(signal)) {
+          await processSignal(signal);
+        }
       }
     }
   }
@@ -286,11 +283,19 @@ export function startBackgroundJobs() {
     optimizeCampaigns().catch(console.error);
   }, 30000);
 
-  // Initial poll after 3s
   setTimeout(() => pollAllSignals().catch(console.error), 3000);
 }
 
-export async function injectSignal(type: SignalType, market: Market) {
+export async function injectSignal(
+  type: SignalType,
+  market: Market,
+  channels?: Channel[]
+) {
+  if (channels?.length) {
+    selectedChannels = channels;
+    await saveSetting("selectedChannels", JSON.stringify(channels));
+  }
+
   const { createWeatherSignal } = await import("../signals/weather");
   const { createTrafficSignal } = await import("../signals/traffic");
   const { createTrendSignal } = await import("../signals/trends");
@@ -308,6 +313,70 @@ export async function injectSignal(type: SignalType, market: Market) {
   return processSignal(signal);
 }
 
+export async function publishCreativeById(creativeId: string) {
+  const rows = await db
+    .select()
+    .from(creatives)
+    .where(eq(creatives.id, creativeId))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+
+  const creative = {
+    id: row.id,
+    triggerId: row.triggerId,
+    channel: (row.channel ?? "meta") as Channel,
+    persona: row.persona,
+    market: row.market as Market,
+    headline: row.headline,
+    copy: row.copy,
+    description: row.description ?? undefined,
+    cta: row.cta,
+    imagePrompt: row.imagePrompt,
+    imageUrl: row.imageUrl ?? undefined,
+    signalContext: row.signalContext,
+    attribution: row.attribution,
+    complianceStatus: row.complianceStatus as "pending_review",
+    createdAt: row.createdAt,
+  };
+
+  const published = await publishToChannel(creative);
+
+  await db.insert(campaigns).values({
+    id: published.id,
+    creativeId: published.creativeId,
+    triggerId: published.triggerId,
+    platform: published.platform,
+    platformId: published.platformId,
+    status: published.status,
+    budget: published.budget,
+    targeting: published.targeting,
+    market: published.market,
+    launchedAt: published.launchedAt ?? null,
+    channel: published.channel,
+    publishAdapter: published.publishAdapter ?? null,
+  });
+
+  await db
+    .update(creatives)
+    .set({ complianceStatus: "published" })
+    .where(eq(creatives.id, creativeId));
+
+  broadcaster.emitEvent("campaign_published", {
+    campaign: published,
+    creative,
+    publishAdapter: published.publishAdapter,
+    publishPayload: published.publishPayload,
+    simulated: true,
+    message: `Routed to ${published.publishAdapter} (simulated — no real spend)`,
+  });
+
+  broadcaster.emitEvent("campaign_launched", { campaign: published, creative });
+
+  return published;
+}
+
+// Keep legacy approve endpoint working
 export async function approveCampaignById(campaignId: string) {
   const rows = await db
     .select()
@@ -317,34 +386,21 @@ export async function approveCampaignById(campaignId: string) {
   const row = rows[0];
   if (!row) return null;
 
-  const campaign = {
-    id: row.id,
-    creativeId: row.creativeId,
-    triggerId: row.triggerId,
-    platform: row.platform as "meta" | "smartly",
-    platformId: row.platformId,
-    status: row.status as "pending_approval" | "active" | "paused" | "scaled" | "blocked",
-    budget: row.budget,
-    targeting: row.targeting,
-    market: row.market as Market,
-    launchedAt: row.launchedAt ?? undefined,
-  };
-
-  const approved = await approveCampaign(campaign);
   await db
     .update(campaigns)
-    .set({ status: "active", launchedAt: approved.launchedAt ?? null })
+    .set({ status: "active", launchedAt: new Date().toISOString() })
     .where(eq(campaigns.id, campaignId));
 
-  broadcaster.emitEvent("campaign_approved", { campaign: approved });
-  return approved;
+  broadcaster.emitEvent("campaign_approved", { campaign: row });
+  return row;
 }
 
 export function getDemoSettings(): DemoSettings {
   return {
     market: "NYC",
     activeMarkets,
-    autoLaunch: config.autoLaunch,
+    selectedChannels,
+    autoLaunch: false,
     pipelinePaused,
   };
 }

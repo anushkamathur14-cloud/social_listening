@@ -81,4 +81,20 @@ export function initDb() {
       value TEXT NOT NULL
     );
   `);
+
+  // Migrations for new columns
+  const migrations = [
+    "ALTER TABLE creatives ADD COLUMN channel TEXT DEFAULT 'meta'",
+    "ALTER TABLE creatives ADD COLUMN image_url TEXT",
+    "ALTER TABLE creatives ADD COLUMN description TEXT",
+    "ALTER TABLE campaigns ADD COLUMN channel TEXT DEFAULT 'meta'",
+    "ALTER TABLE campaigns ADD COLUMN publish_adapter TEXT",
+  ];
+  for (const sql of migrations) {
+    try {
+      sqlite.exec(sql);
+    } catch {
+      // column already exists
+    }
+  }
 }

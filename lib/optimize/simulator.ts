@@ -45,6 +45,7 @@ export async function optimizeCampaigns(): Promise<{
       creativeId: row.creativeId,
       triggerId: row.triggerId,
       platform: row.platform as Platform,
+      channel: (row.channel ?? row.platform) as Campaign["channel"],
       platformId: row.platformId,
       status: row.status as CampaignStatus,
       budget: row.budget,

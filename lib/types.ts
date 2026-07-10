@@ -1,3 +1,5 @@
+import type { Channel } from "./channels";
+
 export type SignalType = "weather" | "traffic" | "trends" | "social" | "reddit";
 export type Market =
   | "NYC"
@@ -23,7 +25,8 @@ export type CampaignStatus =
   | "paused"
   | "scaled"
   | "blocked";
-export type Platform = "meta" | "smartly";
+export type { Channel };
+export type Platform = "meta" | "smartly" | "google_search" | "display";
 
 export interface SignalPayload {
   summary: string;
@@ -67,20 +70,24 @@ export interface CreativeVariant {
   id: string;
   triggerId: string;
   signalId?: string;
+  channel: Channel;
   persona: string;
   market: Market;
   headline: string;
   copy: string;
+  description?: string;
   cta: string;
   imagePrompt: string;
+  imageUrl?: string;
   signalContext: string;
   signalSummary?: string;
   sourceUrl?: string;
   sourceLabel?: string;
   productOffer?: string;
   visualTreatment?: string;
+  specLabel?: string;
   attribution: string;
-  complianceStatus: "pending" | "passed" | "blocked" | "fixed";
+  complianceStatus: "pending" | "passed" | "blocked" | "fixed" | "pending_review" | "approved" | "published";
   createdAt: string;
 }
 
@@ -97,11 +104,13 @@ export interface Campaign {
   creativeId: string;
   triggerId: string;
   platform: Platform;
+  channel: Channel;
   platformId: string;
   status: CampaignStatus;
   budget: number;
   targeting: string;
   market: Market;
+  publishAdapter?: string;
   launchedAt?: string;
 }
 
@@ -135,6 +144,7 @@ export type EventType =
   | "campaign_approved"
   | "performance_update"
   | "optimizer_action"
+  | "campaign_published"
   | "pipeline_paused"
   | "pipeline_resumed";
 
@@ -148,6 +158,7 @@ export interface AppEvent {
 export interface DemoSettings {
   market: Market;
   activeMarkets: Market[];
+  selectedChannels: Channel[];
   autoLaunch: boolean;
   pipelinePaused: boolean;
 }

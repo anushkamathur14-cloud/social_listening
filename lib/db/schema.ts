@@ -31,6 +31,9 @@ export const creatives = sqliteTable("creatives", {
   attribution: text("attribution").notNull(),
   complianceStatus: text("compliance_status").notNull(),
   createdAt: text("created_at").notNull(),
+  channel: text("channel"),
+  imageUrl: text("image_url"),
+  description: text("description"),
 });
 
 export const campaigns = sqliteTable("campaigns", {
@@ -44,6 +47,8 @@ export const campaigns = sqliteTable("campaigns", {
   targeting: text("targeting").notNull(),
   market: text("market").notNull(),
   launchedAt: text("launched_at"),
+  channel: text("channel"),
+  publishAdapter: text("publish_adapter"),
 });
 
 export const performance = sqliteTable("performance", {

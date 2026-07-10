@@ -24,6 +24,7 @@ export async function simulateDeploy(
     creativeId: creative.id,
     triggerId: creative.triggerId,
     platform,
+    channel: creative.channel ?? platform,
     platformId: platformId(platform),
     status: autoLaunch ? "active" : "pending_approval",
     budget: 50 + Math.floor(Math.random() * 150),

@@ -1,3 +1,4 @@
+import { DEFAULT_CHANNELS, parseChannels } from "./channels";
 import { DEFAULT_ACTIVE_MARKETS, MARKETS } from "./markets";
 import type { Market } from "./types";
 
@@ -30,6 +31,7 @@ export const config = {
   brandName: process.env.BRAND_NAME ?? "SignalAds",
   markets: MARKETS.map((m) => m.id),
   defaultActiveMarkets: DEFAULT_ACTIVE_MARKETS,
+  defaultChannels: DEFAULT_CHANNELS,
 };
 
 export function parseActiveMarkets(raw?: string): Market[] {
@@ -41,3 +43,5 @@ export function parseActiveMarkets(raw?: string): Market[] {
     return DEFAULT_ACTIVE_MARKETS;
   }
 }
+
+export { parseChannels };

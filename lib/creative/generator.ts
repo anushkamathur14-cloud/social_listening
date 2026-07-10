@@ -1,9 +1,11 @@
 import OpenAI from "openai";
 import { nanoid } from "nanoid";
+import { CHANNEL_MAP, type Channel } from "../channels";
 import { config } from "../config";
 import { getMarketLabel } from "../markets";
 import type { CreativeVariant, Market, Signal } from "../types";
 import { stampAttribution } from "./attribution";
+import { getStockImageUrl } from "./stock-images";
 
 const PERSONAS = ["commuter", "traveler", "local_shopper"] as const;
 
@@ -11,30 +13,53 @@ interface GeneratedCreative {
   persona: string;
   headline: string;
   copy: string;
+  description?: string;
   cta: string;
   imagePrompt: string;
   productOffer?: string;
   visualTreatment?: string;
 }
 
-function buildCreativeBase(
+function delayMinutes(signal: Signal): number {
+  return (signal.payload.avgDelayMinutes as number) ?? 45;
+}
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 3) + "...";
+}
+
+function buildForChannel(
   signal: Signal,
   triggerId: string,
+  channel: Channel,
   template: GeneratedCreative
 ): CreativeVariant {
+  const spec = CHANNEL_MAP[channel];
   const summary = signal.payload.summary as string;
+  const imageUrl =
+    spec.format === "image"
+      ? getStockImageUrl(signal.type, channel)
+      : undefined;
+
   return stampAttribution({
     id: nanoid(),
     triggerId,
     signalId: signal.id,
+    channel,
     persona: template.persona,
     market: signal.market,
-    headline: template.headline,
-    copy: template.copy,
+    headline: truncate(template.headline, spec.headlineMax),
+    copy: truncate(template.copy, spec.copyMax),
+    description: template.description
+      ? truncate(template.description, spec.descriptionMax ?? 90)
+      : undefined,
     cta: template.cta,
     imagePrompt: template.imagePrompt,
+    imageUrl,
     productOffer: template.productOffer,
     visualTreatment: template.visualTreatment,
+    specLabel: `${spec.label} · ${spec.format === "image" ? `${spec.imageWidth}×${spec.imageHeight}` : "text-only"}`,
     signalContext: summary,
     signalSummary: summary,
     sourceUrl: signal.payload.sourceUrl as string | undefined,
@@ -44,108 +69,127 @@ function buildCreativeBase(
   });
 }
 
-function delayMinutes(signal: Signal): number {
-  return (signal.payload.avgDelayMinutes as number) ?? 45;
-}
-
-function mockCreatives(signal: Signal, triggerId: string): CreativeVariant[] {
-  const summary = signal.payload.summary as string;
+function templatesForSignal(signal: Signal): GeneratedCreative[] {
   const marketLabel = getMarketLabel(signal.market);
   const airport = (signal.payload.airport as string) ?? signal.market;
   const delay = delayMinutes(signal);
+  const topic = (signal.payload.topic as string) ?? "local trend";
 
-  const templates: Record<string, GeneratedCreative[]> = {
+  const byType: Record<string, GeneratedCreative[]> = {
     weather: [
       {
         persona: "commuter",
         headline: "Storm coming. You're covered.",
-        copy: `Severe weather hitting ${marketLabel}? Pre-order rain gear, batteries & pantry staples — delivered before the rush. Same-day slots still open.`,
+        copy: `${marketLabel}: pre-order rain gear, batteries & pantry staples — delivered before the rush.`,
+        description: "Same-day weather prep kits. Free delivery over $35.",
         cta: "Shop Storm Kit",
         productOffer: "Weather Ready Bundle — free delivery over $35",
-        visualTreatment: "Hero: rain-streaked window with warm-lit product box on sill",
-        imagePrompt: "Cozy apartment window, rain outside, curated emergency kit on table",
-      },
-      {
-        persona: "local_shopper",
-        headline: "Don't fight the forecast",
-        copy: `${marketLabel} under weather alert. Skip sold-out aisles — order flood prep, flashlights & water in one tap. Arrives in 2 hours.`,
-        cta: "Get Prepared",
-        productOffer: "24hr Weather Prep — 15% off bundles",
-        visualTreatment: "Before/after: empty store shelf vs. full doorstep delivery",
-        imagePrompt: "Household essentials on doorstep, stormy sky background",
+        visualTreatment: "Rain-streaked window, warm-lit product box",
+        imagePrompt: "Emergency kit on windowsill, storm outside",
       },
     ],
     traffic: [
       {
         persona: "traveler",
         headline: `${delay} min delay? We come to you.`,
-        copy: `Stuck at ${airport}? Order chargers, snacks & comfort kits delivered to your terminal gate. Skip the concession line — live tracking included.`,
+        copy: `Stuck at ${airport}? Chargers, snacks & comfort kits delivered to your gate in 45 min.`,
+        description: "Terminal delivery at major airports. Code DELAY20 for 20% off.",
         cta: "Order to Gate",
-        productOffer: `Terminal Delivery at ${airport} — code DELAY20 for 20% off`,
-        visualTreatment: "Split: red delay board vs. calm traveler receiving bag at gate",
-        imagePrompt: "Traveler at airport gate receiving delivery bag, departure board blurred",
-      },
-      {
-        persona: "commuter",
-        headline: "ORD delays. Zero stress.",
-        copy: `Flight pushed ${delay} min at ${marketLabel}? Turn wait time into comfort — neck pillows, headphones & snacks sent to your terminal in 45 min.`,
-        cta: "Skip the Wait",
-        productOffer: "Airport Comfort Kit — $24.99, gate delivery",
-        visualTreatment: "UGC-style: phone order screen overlaid on busy terminal",
-        imagePrompt: "Busy airport departure board, calm shopper on phone ordering",
+        productOffer: `Terminal Delivery at ${airport}`,
+        visualTreatment: "Traveler receiving bag at airport gate",
+        imagePrompt: "Airport gate delivery, departure board background",
       },
     ],
     trends: [
       {
         persona: "local_shopper",
         headline: "Trending in your city",
-        copy: `${marketLabel} is searching hard for this right now. We stocked up early — grab it before the spike clears shelves.`,
+        copy: `${marketLabel} is searching for this now. We stocked up — grab it before shelves clear.`,
+        description: "Trending products with same-day delivery in your area.",
         cta: "Shop Trending",
-        productOffer: "Trending Now — limited stock, free same-day",
-        visualTreatment: "Trend graph animation morphing into product hero shot",
-        imagePrompt: "Trending product flat lay, social media aesthetic",
+        productOffer: "Trending Now — limited stock",
+        visualTreatment: "Product flat lay with trend graph overlay",
+        imagePrompt: "Trending product hero shot",
       },
     ],
     reddit: [
       {
         persona: "traveler",
         headline: "Reddit asked. We answered.",
-        copy: `"${(signal.payload.topic as string)?.slice(0, 60) ?? "Local thread trending"}" — ${(signal.payload.snippet as string)?.slice(0, 80) ?? ""} Here's the product fix ${marketLabel} is talking about.`,
+        copy: `"${topic.slice(0, 50)}" is trending in ${marketLabel}. Here's the fix your city is talking about.`,
+        description: "Community-driven offer based on local conversation.",
         cta: "See the Fix",
-        productOffer: "Community Pick — based on local conversation",
-        visualTreatment: "Reddit post card transitions into polished product ad",
-        imagePrompt: "Social thread UI fading into clean product hero on mobile",
+        productOffer: "Community Pick — local conversation",
+        visualTreatment: "Social thread to product ad transition",
+        imagePrompt: "Mobile social feed to product card",
       },
     ],
     social: [
       {
         persona: "local_shopper",
         headline: "Your city is buzzing",
-        copy: `${marketLabel} is talking — and we built an offer for exactly this moment. Tap in before the conversation moves on.`,
+        copy: `${marketLabel} is talking — we built an offer for this exact moment.`,
+        description: "Signal-responsive offer, live for 48 hours.",
         cta: "Shop the Moment",
-        productOffer: "Signal-Responsive Offer — live for 48hrs",
-        visualTreatment: "City skyline with floating social bubbles resolving to brand CTA",
-        imagePrompt: "City skyline with social notification bubbles",
+        productOffer: "48hr local offer",
+        visualTreatment: "City skyline with social bubbles",
+        imagePrompt: "Cityscape with notification overlays",
       },
     ],
   };
 
-  const typeTemplates = templates[signal.type] ?? templates.trends;
-  return typeTemplates.map((t) => buildCreativeBase(signal, triggerId, t));
+  return byType[signal.type] ?? byType.trends;
+}
+
+function mockCreatives(
+  signal: Signal,
+  triggerId: string,
+  channels: Channel[]
+): CreativeVariant[] {
+  const baseTemplates = templatesForSignal(signal);
+  const results: CreativeVariant[] = [];
+
+  for (const channel of channels) {
+    const spec = CHANNEL_MAP[channel];
+    for (const template of baseTemplates) {
+      // Google Search: text-only variant with description line
+      if (spec.format === "text") {
+        results.push(
+          buildForChannel(signal, triggerId, channel, {
+            ...template,
+            headline: template.headline,
+            copy: template.description ?? template.copy,
+            description: template.productOffer,
+            cta: "Learn More",
+          })
+        );
+      } else {
+        results.push(buildForChannel(signal, triggerId, channel, template));
+      }
+    }
+  }
+
+  return results;
 }
 
 export async function generateCreatives(
   signal: Signal,
-  triggerId: string
+  triggerId: string,
+  channels: Channel[]
 ): Promise<CreativeVariant[]> {
   if (!config.openaiApiKey) {
-    return mockCreatives(signal, triggerId);
+    return mockCreatives(signal, triggerId, channels);
   }
 
   try {
     const openai = new OpenAI({ apiKey: config.openaiApiKey });
     const summary = signal.payload.summary as string;
-    const sourceLabel = signal.payload.sourceLabel ?? "unknown source";
+    const channelSpecs = channels
+      .map((c) => {
+        const s = CHANNEL_MAP[c];
+        return `${c}: ${s.format}, headline≤${s.headlineMax}, copy≤${s.copyMax}`;
+      })
+      .join("; ");
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -153,73 +197,49 @@ export async function generateCreatives(
       messages: [
         {
           role: "system",
-          content: `You are a senior paid social creative director at a DTC brand. Generate FINISHED ad units ready for Meta/Instagram — not briefs or ideas.
-
-Rules:
-- Write like a real ad: punchy headline, benefit-led body, specific product/offer
-- Include productOffer (specific deal/bundle) and visualTreatment (1-line art direction)
-- Headline max 40 chars, primary text max 125 chars
-- Reference the signal naturally (weather delay, trend, Reddit thread) — don't describe the pipeline
-- No meta language like "triggered by" or "signal detected"
-- Return JSON: { "variants": [{ "persona", "headline", "copy", "cta", "imagePrompt", "productOffer", "visualTreatment" }] }
-- Generate 3 variants for personas: ${PERSONAS.join(", ")}`,
+          content: `You are a senior paid social creative director. Generate FINISHED ad units per channel spec.
+Return JSON: { "variants": [{ "channel", "persona", "headline", "copy", "description", "cta", "imagePrompt", "productOffer" }] }
+One variant per channel. Respect character limits strictly.`,
         },
         {
           role: "user",
-          content: `Signal type: ${signal.type}
-Market: ${getMarketLabel(signal.market)}
-Source: ${sourceLabel}
+          content: `Channels: ${channelSpecs}
+Signal: ${signal.type} in ${getMarketLabel(signal.market)}
 Context: ${summary}
-Topic: ${signal.payload.topic ?? "n/a"}
-Snippet: ${signal.payload.snippet ?? "n/a"}
-Generate 3 creative variants.`,
+Generate one variant per channel.`,
         },
       ],
     });
 
     const content = response.choices[0]?.message?.content;
-    if (!content) return mockCreatives(signal, triggerId);
+    if (!content) return mockCreatives(signal, triggerId, channels);
 
-    const parsed = JSON.parse(content) as { variants: GeneratedCreative[] };
+    const parsed = JSON.parse(content) as {
+      variants: (GeneratedCreative & { channel: Channel })[];
+    };
 
-    return parsed.variants.slice(0, 6).map((v) =>
-      stampAttribution({
-        id: nanoid(),
-        triggerId,
-        signalId: signal.id,
-        persona: v.persona,
-        market: signal.market as Market,
-        headline: v.headline.slice(0, 40),
-        copy: v.copy.slice(0, 200),
-        cta: v.cta,
-        imagePrompt: v.imagePrompt,
-        productOffer: v.productOffer,
-        visualTreatment: v.visualTreatment,
-        signalContext: summary,
-        signalSummary: summary,
-        sourceUrl: signal.payload.sourceUrl as string | undefined,
-        sourceLabel: signal.payload.sourceLabel as string | undefined,
-        complianceStatus: "pending",
-        createdAt: new Date().toISOString(),
-      })
-    );
+    return parsed.variants
+      .filter((v) => channels.includes(v.channel))
+      .map((v) => buildForChannel(signal, triggerId, v.channel, v));
   } catch {
-    return mockCreatives(signal, triggerId);
+    return mockCreatives(signal, triggerId, channels);
   }
 }
 
 export async function generateIncrementalVariant(
   winningCreative: CreativeVariant,
-  signal: Signal
+  signal: Signal,
+  channels: Channel[]
 ): Promise<CreativeVariant> {
-  const variants = await generateCreatives(signal, winningCreative.triggerId);
-  const base = variants[0] ?? mockCreatives(signal, winningCreative.triggerId)[0];
+  const variants = await generateCreatives(signal, winningCreative.triggerId, channels);
+  const base = variants.find((v) => v.channel === winningCreative.channel) ?? variants[0];
+  if (!base) return winningCreative;
 
   return stampAttribution({
     ...base,
     id: nanoid(),
-    headline: `${winningCreative.headline}`.slice(0, 36) + " v2",
-    copy: `Top performer variant: ${winningCreative.copy.slice(0, 80)}... ${base.copy}`,
+    headline: truncate(`${winningCreative.headline} v2`, CHANNEL_MAP[base.channel as keyof typeof CHANNEL_MAP].headlineMax),
+    copy: `Top performer variant. ${base.copy}`,
     signalContext: `Incremental winner from ${winningCreative.id}`,
     createdAt: new Date().toISOString(),
   });
