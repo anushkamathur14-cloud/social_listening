@@ -15,35 +15,48 @@ interface CreativeCardProps {
 }
 
 export function CreativeCard({ events, onApprove }: CreativeCardProps) {
-  const creativeEvents = events
-    .filter(
-      (e) =>
-        e.type === "creative_generated" ||
-        e.type === "campaign_launched" ||
-        e.type === "compliance_result"
-    )
-    .slice(-30);
-
-  const creatives = creativeEvents
+  const creatives = events
     .filter((e) => e.type === "creative_generated")
-    .slice(-6)
+    .slice(-8)
     .reverse();
 
-  const campaigns = events
-    .filter((e) => e.type === "campaign_launched")
-    .slice(-6)
-    .reverse();
+  const campaignByCreativeId = new Map<
+    string,
+    {
+      id: string;
+      status: string;
+      platform: string;
+      platformId: string;
+      budget: number;
+    }
+  >();
 
-  const complianceMap = new Map<string, { status: string; violations: string[] }>();
+  for (const e of events.filter((ev) => ev.type === "campaign_launched")) {
+    const campaign = e.data.campaign as {
+      id: string;
+      creativeId: string;
+      status: string;
+      platform: string;
+      platformId: string;
+      budget: number;
+    };
+    campaignByCreativeId.set(campaign.creativeId, campaign);
+  }
+
+  const complianceMap = new Map<
+    string,
+    { status: string; violations: string[]; autoFixes?: string[] }
+  >();
   for (const e of events.filter((ev) => ev.type === "compliance_result")) {
     complianceMap.set(e.data.creativeId as string, {
       status: e.data.status as string,
       violations: (e.data.violations as string[]) ?? [],
+      autoFixes: (e.data.autoFixes as string[]) ?? [],
     });
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto max-h-[420px] pr-1">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto max-h-[520px] pr-1">
       {creatives.length === 0 && (
         <p className="text-sm text-zinc-500 italic col-span-2">
           No creatives yet — inject a signal to start the pipeline.
@@ -59,23 +72,21 @@ export function CreativeCard({ events, onApprove }: CreativeCardProps) {
           cta: string;
           attribution: string;
           complianceStatus: string;
+          signalContext?: string;
+          signalSummary?: string;
+          sourceUrl?: string;
+          sourceLabel?: string;
+          imagePrompt?: string;
         };
+
         const compliance = complianceMap.get(creative.id);
-        const status = compliance?.status ?? creative.complianceStatus ?? "pending";
-        const campaign = campaigns.find(
-          (c) => (c.data.creative as { id: string })?.id === creative.id
-        );
-        const campaignData = campaign?.data.campaign as {
-          id: string;
-          status: string;
-          platform: string;
-          platformId: string;
-          budget: number;
-        } | undefined;
+        const status =
+          compliance?.status ?? creative.complianceStatus ?? "pending";
+        const campaignData = campaignByCreativeId.get(creative.id);
 
         return (
           <div
-            key={event.id}
+            key={`${event.id}-${creative.id}`}
             className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-4 flex flex-col gap-2"
           >
             <div className="flex items-center gap-2">
@@ -91,15 +102,41 @@ export function CreativeCard({ events, onApprove }: CreativeCardProps) {
             </div>
 
             <h3 className="font-semibold text-white text-sm leading-tight">
-              {creative.headline}
+              {creative.headline || "Untitled creative"}
             </h3>
-            <p className="text-xs text-zinc-400 leading-relaxed line-clamp-4">
-              {creative.copy}
+
+            <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">
+              {creative.copy || "No ad copy generated — check signal source."}
             </p>
 
-            <button className="self-start rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1 font-medium transition-colors">
-              {creative.cta}
-            </button>
+            <div className="rounded-md bg-zinc-800/60 border border-zinc-700/50 p-2 text-[11px] text-zinc-400">
+              <span className="text-zinc-500 font-medium">Triggered by: </span>
+              {creative.signalSummary ?? creative.signalContext ?? "Unknown signal"}
+            </div>
+
+            {creative.sourceUrl && (
+              <a
+                href={creative.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-cyan-400 hover:text-cyan-300"
+              >
+                ↗ Source: {creative.sourceLabel ?? "View original thread/data"}
+              </a>
+            )}
+
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-indigo-600/80 text-white text-xs px-3 py-1 font-medium">
+                {creative.cta}
+              </span>
+              <span className="text-[10px] text-zinc-600">(preview CTA)</span>
+            </div>
+
+            {creative.imagePrompt && (
+              <p className="text-[10px] text-zinc-600 italic">
+                Image: {creative.imagePrompt}
+              </p>
+            )}
 
             <a
               href={creative.attribution}
@@ -109,6 +146,12 @@ export function CreativeCard({ events, onApprove }: CreativeCardProps) {
             >
               {creative.attribution}
             </a>
+
+            {compliance?.autoFixes && compliance.autoFixes.length > 0 && (
+              <p className="text-[10px] text-yellow-500/80">
+                Auto-fixed: {compliance.autoFixes.join(", ")}
+              </p>
+            )}
 
             {campaignData && (
               <div className="mt-1 pt-2 border-t border-zinc-800 text-xs text-zinc-500">

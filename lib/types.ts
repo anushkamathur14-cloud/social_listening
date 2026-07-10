@@ -1,5 +1,16 @@
 export type SignalType = "weather" | "traffic" | "trends" | "social" | "reddit";
-export type Market = "NYC" | "LAX" | "ORD" | "US";
+export type Market =
+  | "NYC"
+  | "LAX"
+  | "ORD"
+  | "SEA"
+  | "SFO"
+  | "MIA"
+  | "BOS"
+  | "AUS"
+  | "ATL"
+  | "DFW"
+  | "US";
 export type PipelineStage =
   | "detect"
   | "generate"
@@ -16,6 +27,9 @@ export type Platform = "meta" | "smartly";
 
 export interface SignalPayload {
   summary: string;
+  sourceUrl?: string;
+  sourceLabel?: string;
+  sourceType?: "api" | "mock" | "injected" | "reddit" | "trends";
   details?: Record<string, unknown>;
   [key: string]: unknown;
 }
@@ -52,6 +66,7 @@ export interface Trigger {
 export interface CreativeVariant {
   id: string;
   triggerId: string;
+  signalId?: string;
   persona: string;
   market: Market;
   headline: string;
@@ -59,6 +74,9 @@ export interface CreativeVariant {
   cta: string;
   imagePrompt: string;
   signalContext: string;
+  signalSummary?: string;
+  sourceUrl?: string;
+  sourceLabel?: string;
   attribution: string;
   complianceStatus: "pending" | "passed" | "blocked" | "fixed";
   createdAt: string;
@@ -127,6 +145,7 @@ export interface AppEvent {
 
 export interface DemoSettings {
   market: Market;
+  activeMarkets: Market[];
   autoLaunch: boolean;
   pipelinePaused: boolean;
 }

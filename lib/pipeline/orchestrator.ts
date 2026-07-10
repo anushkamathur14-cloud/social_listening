@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { config } from "../config";
+import { config, parseActiveMarkets } from "../config";
 import { generateCreatives, generateIncrementalVariant } from "../creative/generator";
 import { applyComplianceFixes, validateCreative } from "../compliance/rules";
 import { db, initDb } from "../db/client";
@@ -27,6 +27,7 @@ import type {
 } from "../types";
 
 let pipelinePaused = false;
+let activeMarkets: Market[] = config.defaultActiveMarkets;
 let optimizerInterval: ReturnType<typeof setInterval> | null = null;
 let pollerInterval: ReturnType<typeof setInterval> | null = null;
 let initialized = false;
@@ -43,6 +44,7 @@ async function loadSettings() {
   const rows = await db.select().from(settings);
   for (const row of rows) {
     if (row.key === "pipelinePaused") pipelinePaused = row.value === "true";
+    if (row.key === "activeMarkets") activeMarkets = parseActiveMarkets(row.value);
   }
 }
 
@@ -61,6 +63,15 @@ export async function setPipelinePaused(paused: boolean) {
   pipelinePaused = paused;
   await saveSetting("pipelinePaused", String(paused));
   broadcaster.emitEvent(paused ? "pipeline_paused" : "pipeline_resumed", {});
+}
+
+export async function setActiveMarkets(markets: Market[]) {
+  activeMarkets = markets.filter((m) => config.markets.includes(m));
+  await saveSetting("activeMarkets", JSON.stringify(activeMarkets));
+}
+
+export function getActiveMarkets(): Market[] {
+  return activeMarkets;
 }
 
 async function emitStage(
@@ -110,6 +121,23 @@ export async function runPipeline(triggerId: string, signalId: string) {
   // Stage 1: Detect (already done)
   timings.detect = Date.now() - start;
   await emitStage(runId, triggerId, "detect", timings, "completed");
+
+  broadcaster.emitEvent("pipeline_stage", {
+    runId,
+    triggerId,
+    stage: "detect",
+    status: "completed",
+    timings,
+    signal: {
+      id: signal.id,
+      type: signal.type,
+      market: signal.market,
+      summary: signal.payload.summary,
+      sourceUrl: signal.payload.sourceUrl,
+      sourceLabel: signal.payload.sourceLabel,
+    },
+    message: `Signal detected in ${signal.market}: ${signal.payload.summary}`,
+  });
 
   // Stage 2: Generate
   const genStart = Date.now();
@@ -227,11 +255,13 @@ export async function processSignal(signal: Signal) {
 export async function pollAllSignals() {
   if (pipelinePaused) return;
 
+  const markets = activeMarkets;
+
   const results = await Promise.allSettled([
-    fetchWeatherSignals(),
-    fetchTrafficSignals(),
-    fetchTrendSignals(),
-    fetchRedditSignals(),
+    fetchWeatherSignals(markets),
+    fetchTrafficSignals(markets),
+    fetchTrendSignals(markets),
+    fetchRedditSignals(markets),
   ]);
 
   for (const result of results) {
@@ -313,6 +343,7 @@ export async function approveCampaignById(campaignId: string) {
 export function getDemoSettings(): DemoSettings {
   return {
     market: "NYC",
+    activeMarkets,
     autoLaunch: config.autoLaunch,
     pipelinePaused,
   };

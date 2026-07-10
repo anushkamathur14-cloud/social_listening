@@ -1,32 +1,68 @@
 import { nanoid } from "nanoid";
+import { MARKET_MAP } from "../markets";
 import type { Market, Signal } from "../types";
 
-const MOCK_WEATHER: Array<{ market: Market; summary: string; severity: Signal["severity"] }> = [
-  { market: "NYC", summary: "Severe thunderstorm warning — flash flooding expected", severity: "high" },
-  { market: "LAX", summary: "Extreme heat advisory — 108°F expected", severity: "high" },
-  { market: "ORD", summary: "Winter storm watch — heavy snow tonight", severity: "medium" },
+const MOCK_WEATHER: Array<{
+  market: Market;
+  summary: string;
+  severity: Signal["severity"];
+}> = [
+  {
+    market: "NYC",
+    summary: "Severe thunderstorm warning — flash flooding expected",
+    severity: "high",
+  },
+  {
+    market: "SEA",
+    summary: "Heavy rain advisory — urban flooding in downtown Seattle",
+    severity: "high",
+  },
+  {
+    market: "LAX",
+    summary: "Extreme heat advisory — 108°F expected",
+    severity: "high",
+  },
+  {
+    market: "ORD",
+    summary: "Winter storm watch — heavy snow tonight",
+    severity: "medium",
+  },
+  {
+    market: "MIA",
+    summary: "Tropical storm watch — high winds and flooding risk",
+    severity: "high",
+  },
+  {
+    market: "SFO",
+    summary: "Dense fog advisory — visibility below ¼ mile",
+    severity: "medium",
+  },
 ];
 
-export async function fetchWeatherSignals(): Promise<Signal[]> {
-  const apiKey = process.env.OPENWEATHER_API_KEY;
-  if (!apiKey) {
-    return mockWeatherSignals();
-  }
+function weatherSourceUrl(market: Market, lat: number, lon: number): string {
+  return `https://openweathermap.org/weathermap?basemap=map&cities=true&layer=temperature&lat=${lat}&lon=${lon}&zoom=10`;
+}
 
-  const markets: Market[] = ["NYC", "LAX", "ORD"];
-  const coords: Record<Market, { lat: number; lon: number }> = {
-    NYC: { lat: 40.7128, lon: -74.006 },
-    LAX: { lat: 34.0522, lon: -118.2437 },
-    ORD: { lat: 41.9742, lon: -87.9073 },
-    US: { lat: 39.8283, lon: -98.5795 },
-  };
+export async function fetchWeatherSignals(
+  activeMarkets?: Market[]
+): Promise<Signal[]> {
+  const apiKey = process.env.OPENWEATHER_API_KEY;
+  const markets = (activeMarkets ?? Object.keys(MARKET_MAP)).filter(
+    (m) => m !== "US"
+  ) as Market[];
+
+  if (!apiKey) {
+    return mockWeatherSignals(activeMarkets);
+  }
 
   const signals: Signal[] = [];
 
   for (const market of markets) {
+    const cfg = MARKET_MAP[market];
+    if (!cfg) continue;
+
     try {
-      const { lat, lon } = coords[market];
-      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=imperial`;
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${cfg.lat}&lon=${cfg.lon}&appid=${apiKey}&units=imperial`;
       const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) continue;
 
@@ -49,50 +85,70 @@ export async function fetchWeatherSignals(): Promise<Signal[]> {
           market,
           severity,
           payload: {
-            summary: `${condition}: ${description} (${Math.round(temp)}°F)`,
+            summary: `${cfg.label}: ${condition} — ${description} (${Math.round(temp)}°F)`,
+            sourceUrl: weatherSourceUrl(market, cfg.lat, cfg.lon),
+            sourceLabel: `OpenWeather · ${cfg.label}`,
+            sourceType: "api",
             temperature: temp,
             condition,
             description,
+            city: cfg.label,
           },
           detectedAt: new Date().toISOString(),
         });
       }
     } catch {
-      // fall through to mock for this market
+      // continue
     }
   }
 
-  return signals.length > 0 ? signals : mockWeatherSignals();
+  return signals.length > 0 ? signals : mockWeatherSignals(activeMarkets);
 }
 
-function mockWeatherSignals(): Signal[] {
-  const pick = MOCK_WEATHER[Math.floor(Math.random() * MOCK_WEATHER.length)];
+function mockWeatherSignals(activeMarkets?: Market[]): Signal[] {
+  const pool = activeMarkets
+    ? MOCK_WEATHER.filter((m) => activeMarkets.includes(m.market))
+    : MOCK_WEATHER;
+  const pick = pool[Math.floor(Math.random() * pool.length)] ?? MOCK_WEATHER[0];
+  const cfg = MARKET_MAP[pick.market];
+
   return [
     {
       id: nanoid(),
       type: "weather",
       market: pick.market,
       severity: pick.severity,
-      payload: { summary: pick.summary, source: "mock" },
+      payload: {
+        summary: `${cfg.label}: ${pick.summary}`,
+        sourceUrl: weatherSourceUrl(pick.market, cfg.lat, cfg.lon),
+        sourceLabel: `OpenWeather (mock) · ${cfg.label}`,
+        sourceType: "mock",
+        city: cfg.label,
+      },
       detectedAt: new Date().toISOString(),
     },
   ];
 }
 
 export function createWeatherSignal(market: Market): Signal {
-  const mock = MOCK_WEATHER.find((m) => m.market === market) ?? MOCK_WEATHER[0];
+  const mock =
+    MOCK_WEATHER.find((m) => m.market === market) ?? MOCK_WEATHER[0];
+  const cfg = MARKET_MAP[market] ?? MARKET_MAP[mock.market];
+
   return {
     id: nanoid(),
     type: "weather",
     market,
     severity: mock.severity,
-    payload: { summary: mock.summary, source: "injected" },
+    payload: {
+      summary: `${cfg.label}: ${mock.summary}`,
+      sourceUrl: weatherSourceUrl(market, cfg.lat, cfg.lon),
+      sourceLabel: `Injected weather signal · ${cfg.label}`,
+      sourceType: "injected",
+      city: cfg.label,
+    },
     detectedAt: new Date().toISOString(),
   };
-}
-
-export function isWeatherSignal(signal: Signal): boolean {
-  return signal.type === "weather";
 }
 
 export function getWeatherAlertSeverity(signal: Signal): string {

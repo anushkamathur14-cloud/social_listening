@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { config } from "../config";
+import { MARKET_MAP, MARKETS } from "../markets";
 import type { Market, Signal } from "../types";
 import { normalizeSocialSignal, socialToSignalContext } from "./social";
 
@@ -12,40 +13,60 @@ interface RedditPost {
   subreddit: string;
 }
 
-const MOCK_THREADS = [
+const MOCK_THREADS: Array<{
+  subreddit: string;
+  title: string;
+  snippet: string;
+  score: number;
+  comments: number;
+  market: Market;
+}> = [
   {
     subreddit: "travel",
     title: "ORD delays are insane today — 3 hour wait",
-    snippet: "Anyone else stuck at O'Hare? Flights backed up due to weather.",
+    snippet:
+      "Anyone else stuck at O'Hare? Flights backed up due to weather. Terminal 1 is packed.",
     score: 847,
     comments: 234,
-    market: "ORD" as Market,
+    market: "ORD",
+  },
+  {
+    subreddit: "Seattle",
+    title: "I-5 flooding near downtown — commute nightmare",
+    snippet:
+      "Multiple lanes closed. Allow 2x normal travel time if heading south from Capitol Hill.",
+    score: 956,
+    comments: 312,
+    market: "SEA",
   },
   {
     subreddit: "nyc",
     title: "Subway flooding again — what's the backup plan?",
-    snippet: "Lines 4/5 suspended. Need alternatives for commute tomorrow.",
+    snippet:
+      "Lines 4/5 suspended. Need alternatives for commute tomorrow. Any bus routes worth trying?",
     score: 1203,
     comments: 456,
-    market: "NYC" as Market,
+    market: "NYC",
   },
   {
-    subreddit: "weather",
+    subreddit: "LosAngeles",
     title: "LA heat wave — power outages starting in valley",
-    snippet: "108°F and rolling blackouts. Stock up on water and batteries.",
+    snippet:
+      "108°F and rolling blackouts. Stock up on water and batteries before shelves clear.",
     score: 623,
     comments: 189,
-    market: "LAX" as Market,
+    market: "LAX",
+  },
+  {
+    subreddit: "Miami",
+    title: "Tropical storm prep — what's flying off shelves?",
+    snippet:
+      "Hardware stores wiped out of generators. Sharing what's still in stock by neighborhood.",
+    score: 734,
+    comments: 201,
+    market: "MIA",
   },
 ];
-
-const SUB_MARKET_MAP: Record<string, Market> = {
-  nyc: "NYC",
-  losangeles: "LAX",
-  chicago: "ORD",
-  travel: "US",
-  weather: "US",
-};
 
 async function fetchSubredditRising(subreddit: string): Promise<RedditPost[]> {
   const url = `https://www.reddit.com/r/${subreddit}/rising.json?limit=5`;
@@ -61,11 +82,28 @@ async function fetchSubredditRising(subreddit: string): Promise<RedditPost[]> {
   );
 }
 
-export async function fetchRedditSignals(): Promise<Signal[]> {
+function marketForSubreddit(subreddit: string): Market {
+  const match = MARKETS.find((m) =>
+    m.redditSubs.some((s) => s.toLowerCase() === subreddit.toLowerCase())
+  );
+  return match?.id ?? "US";
+}
+
+export async function fetchRedditSignals(
+  activeMarkets?: Market[]
+): Promise<Signal[]> {
   const signals: Signal[] = [];
+  const subs = new Set<string>(config.redditSubreddits);
+
+  if (activeMarkets) {
+    for (const market of activeMarkets) {
+      const cfg = MARKET_MAP[market];
+      cfg?.redditSubs.forEach((s) => subs.add(s));
+    }
+  }
 
   try {
-    for (const sub of config.redditSubreddits) {
+    for (const sub of subs) {
       const posts = await fetchSubredditRising(sub.trim());
       for (const post of posts) {
         const text = `${post.title} ${post.selftext}`.toLowerCase();
@@ -74,16 +112,21 @@ export async function fetchRedditSignals(): Promise<Signal[]> {
         );
         const engagementScore = post.score + post.num_comments * 2;
         const velocity = Math.min(5, engagementScore / 200);
+        const market = marketForSubreddit(post.subreddit);
+
+        if (activeMarkets && !activeMarkets.includes(market) && market !== "US") {
+          continue;
+        }
 
         if (keywordMatch || engagementScore > 500) {
-          const market = SUB_MARKET_MAP[post.subreddit.toLowerCase()] ?? "US";
+          const url = `https://reddit.com${post.permalink}`;
           const social = normalizeSocialSignal({
             platform: "reddit",
             topic: post.title,
             snippet: post.selftext || post.title,
             engagementScore,
             velocity,
-            url: `https://reddit.com${post.permalink}`,
+            url,
             market,
           });
 
@@ -94,7 +137,18 @@ export async function fetchRedditSignals(): Promise<Signal[]> {
             severity: engagementScore > 800 ? "high" : "medium",
             payload: {
               summary: socialToSignalContext(social),
-              ...social,
+              sourceUrl: url,
+              sourceLabel: `Reddit · r/${post.subreddit}`,
+              sourceType: "reddit",
+              topic: post.title,
+              snippet: social.snippet,
+              platform: "reddit",
+              engagementScore,
+              velocity,
+              subreddit: post.subreddit,
+              score: post.score,
+              comments: post.num_comments,
+              city: MARKET_MAP[market]?.label ?? market,
             },
             detectedAt: new Date().toISOString(),
           });
@@ -102,16 +156,20 @@ export async function fetchRedditSignals(): Promise<Signal[]> {
       }
     }
   } catch {
-    return mockRedditSignals();
+    return mockRedditSignals(activeMarkets);
   }
 
-  return signals.length > 0 ? signals.slice(0, 3) : mockRedditSignals();
+  return signals.length > 0 ? signals.slice(0, 5) : mockRedditSignals(activeMarkets);
 }
 
-function mockRedditSignals(): Signal[] {
-  const pick = MOCK_THREADS[Math.floor(Math.random() * MOCK_THREADS.length)];
+function mockRedditSignals(activeMarkets?: Market[]): Signal[] {
+  const pool = activeMarkets
+    ? MOCK_THREADS.filter((t) => activeMarkets.includes(t.market))
+    : MOCK_THREADS;
+  const pick = pool[Math.floor(Math.random() * pool.length)] ?? MOCK_THREADS[0];
   const engagementScore = pick.score + pick.comments * 2;
   const velocity = Math.min(5, engagementScore / 200);
+  const url = `https://reddit.com/r/${pick.subreddit}`;
 
   const social = normalizeSocialSignal({
     platform: "reddit",
@@ -119,7 +177,7 @@ function mockRedditSignals(): Signal[] {
     snippet: pick.snippet,
     engagementScore,
     velocity,
-    url: `https://reddit.com/r/${pick.subreddit}`,
+    url,
     market: pick.market,
   });
 
@@ -131,8 +189,18 @@ function mockRedditSignals(): Signal[] {
       severity: engagementScore > 800 ? "high" : "medium",
       payload: {
         summary: socialToSignalContext(social),
-        ...social,
-        source: "mock",
+        sourceUrl: url,
+        sourceLabel: `Reddit (mock) · r/${pick.subreddit}`,
+        sourceType: "mock",
+        topic: pick.title,
+        snippet: pick.snippet,
+        platform: "reddit",
+        engagementScore,
+        velocity,
+        subreddit: pick.subreddit,
+        score: pick.score,
+        comments: pick.comments,
+        city: MARKET_MAP[pick.market]?.label ?? pick.market,
       },
       detectedAt: new Date().toISOString(),
     },
@@ -144,6 +212,7 @@ export function createRedditSignal(market: Market): Signal {
     MOCK_THREADS.find((t) => t.market === market) ?? MOCK_THREADS[0];
   const engagementScore = pick.score + pick.comments * 2;
   const velocity = Math.min(5, engagementScore / 200);
+  const url = `https://reddit.com/r/${pick.subreddit}`;
 
   const social = normalizeSocialSignal({
     platform: "reddit",
@@ -151,7 +220,7 @@ export function createRedditSignal(market: Market): Signal {
     snippet: pick.snippet,
     engagementScore,
     velocity,
-    url: `https://reddit.com/r/${pick.subreddit}`,
+    url,
     market: pick.market,
   });
 
@@ -162,8 +231,18 @@ export function createRedditSignal(market: Market): Signal {
     severity: "high",
     payload: {
       summary: socialToSignalContext(social),
-      ...social,
-      source: "injected",
+      sourceUrl: url,
+      sourceLabel: `Injected Reddit · r/${pick.subreddit}`,
+      sourceType: "injected",
+      topic: pick.title,
+      snippet: pick.snippet,
+      platform: "reddit",
+      engagementScore,
+      velocity,
+      subreddit: pick.subreddit,
+      score: pick.score,
+      comments: pick.comments,
+      city: MARKET_MAP[pick.market]?.label ?? pick.market,
     },
     detectedAt: new Date().toISOString(),
   };

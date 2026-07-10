@@ -1,3 +1,4 @@
+import { DEFAULT_ACTIVE_MARKETS, MARKETS } from "./markets";
 import type { Market } from "./types";
 
 function envBool(key: string, defaultValue: boolean): boolean {
@@ -27,15 +28,16 @@ export const config = {
   pollIntervalMs: envInt("POLL_INTERVAL_MS", 90000),
   debounceMinutes: envInt("DEBOUNCE_MINUTES", 15),
   brandName: process.env.BRAND_NAME ?? "SignalAds",
-  markets: ["NYC", "LAX", "ORD", "US"] as Market[],
+  markets: MARKETS.map((m) => m.id),
+  defaultActiveMarkets: DEFAULT_ACTIVE_MARKETS,
 };
 
-export const marketCoords: Record<
-  Market,
-  { lat: number; lon: number; label: string }
-> = {
-  NYC: { lat: 40.7128, lon: -74.006, label: "New York City" },
-  LAX: { lat: 33.9425, lon: -118.4081, label: "Los Angeles" },
-  ORD: { lat: 41.9742, lon: -87.9073, label: "Chicago O'Hare" },
-  US: { lat: 39.8283, lon: -98.5795, label: "United States" },
-};
+export function parseActiveMarkets(raw?: string): Market[] {
+  if (!raw) return DEFAULT_ACTIVE_MARKETS;
+  try {
+    const parsed = JSON.parse(raw) as Market[];
+    return parsed.filter((m) => config.markets.includes(m));
+  } catch {
+    return DEFAULT_ACTIVE_MARKETS;
+  }
+}

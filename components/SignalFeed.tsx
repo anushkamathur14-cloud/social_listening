@@ -18,26 +18,43 @@ const SEVERITY_COLORS: Record<string, string> = {
 
 interface SignalFeedProps {
   events: AppEvent[];
+  filterMarkets?: string[];
 }
 
-export function SignalFeed({ events }: SignalFeedProps) {
+export function SignalFeed({ events, filterMarkets }: SignalFeedProps) {
   const signalEvents = events
     .filter((e) => e.type === "signal_detected")
+    .filter((e) => {
+      if (!filterMarkets?.length) return true;
+      const market = (e.data.signal as { market: string }).market;
+      return filterMarkets.includes(market);
+    })
     .slice(-12)
     .reverse();
 
   return (
     <div className="flex flex-col gap-2 overflow-y-auto max-h-[420px] pr-1">
       {signalEvents.length === 0 && (
-        <p className="text-sm text-zinc-500 italic">Waiting for signals...</p>
+        <p className="text-sm text-zinc-500 italic">
+          Waiting for signals in selected cities...
+        </p>
       )}
       {signalEvents.map((event) => {
         const signal = event.data.signal as {
           type: string;
           market: string;
           severity: string;
-          payload: { summary: string };
+          payload: {
+            summary: string;
+            sourceUrl?: string;
+            sourceLabel?: string;
+            sourceType?: string;
+            topic?: string;
+            snippet?: string;
+            subreddit?: string;
+          };
         };
+
         return (
           <div
             key={event.id}
@@ -50,14 +67,40 @@ export function SignalFeed({ events }: SignalFeedProps) {
                 {signal.type}
               </span>
               <span className="text-zinc-400">{signal.market}</span>
-              <span className={`text-xs font-semibold ${SEVERITY_COLORS[signal.severity]}`}>
+              <span
+                className={`text-xs font-semibold ${SEVERITY_COLORS[signal.severity]}`}
+              >
                 {signal.severity}
               </span>
               <span className="ml-auto text-xs text-zinc-600">
                 {new Date(event.timestamp).toLocaleTimeString()}
               </span>
             </div>
+
             <p className="text-zinc-300 leading-snug">{signal.payload.summary}</p>
+
+            {signal.payload.topic && (
+              <p className="text-xs text-zinc-500 mt-1">
+                Thread: {signal.payload.topic}
+              </p>
+            )}
+
+            {signal.payload.snippet && signal.type === "reddit" && (
+              <p className="text-xs text-zinc-500 mt-1 italic line-clamp-2">
+                &ldquo;{signal.payload.snippet}&rdquo;
+              </p>
+            )}
+
+            {signal.payload.sourceUrl && (
+              <a
+                href={signal.payload.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-2 text-xs text-cyan-400 hover:text-cyan-300"
+              >
+                ↗ Verify source: {signal.payload.sourceLabel ?? "View original"}
+              </a>
+            )}
           </div>
         );
       })}

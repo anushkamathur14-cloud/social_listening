@@ -5,9 +5,10 @@ import { CreativeCard } from "@/components/CreativeCard";
 import { MetricsPanel } from "@/components/MetricsPanel";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { SignalFeed } from "@/components/SignalFeed";
+import { MARKETS } from "@/lib/markets";
 import type { AppEvent, Market, SignalType } from "@/lib/types";
 
-const MARKETS: Market[] = ["NYC", "LAX", "ORD", "US"];
+const INJECTABLE_MARKETS = MARKETS.filter((m) => m.id !== "US");
 const SIGNAL_TYPES: SignalType[] = [
   "weather",
   "traffic",
@@ -18,10 +19,33 @@ const SIGNAL_TYPES: SignalType[] = [
 export default function Dashboard() {
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [connected, setConnected] = useState(false);
-  const [market, setMarket] = useState<Market>("NYC");
-  const [signalType, setSignalType] = useState<SignalType>("weather");
+  const [injectMarket, setInjectMarket] = useState<Market>("NYC");
+  const [signalType, setSignalType] = useState<SignalType>("reddit");
+  const [activeMarkets, setActiveMarkets] = useState<Market[]>([
+    "NYC",
+    "SEA",
+    "LAX",
+    "ORD",
+    "SFO",
+    "MIA",
+  ]);
   const [paused, setPaused] = useState(false);
   const [injecting, setInjecting] = useState(false);
+  const [showCityPicker, setShowCityPicker] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/runs")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.activeMarkets)) {
+          setActiveMarkets(data.activeMarkets);
+        }
+        if (typeof data.pipelinePaused === "boolean") {
+          setPaused(data.pipelinePaused);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const source = new EventSource("/api/events/stream");
@@ -43,18 +67,34 @@ export default function Dashboard() {
     return () => source.close();
   }, []);
 
+  const toggleCity = useCallback(
+    async (city: Market) => {
+      const next = activeMarkets.includes(city)
+        ? activeMarkets.filter((m) => m !== city)
+        : [...activeMarkets, city];
+      if (next.length === 0) return;
+      setActiveMarkets(next);
+      await fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activeMarkets: next }),
+      });
+    },
+    [activeMarkets]
+  );
+
   const injectSignal = useCallback(async () => {
     setInjecting(true);
     try {
       await fetch("/api/signals/inject", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: signalType, market }),
+        body: JSON.stringify({ type: signalType, market: injectMarket }),
       });
     } finally {
       setInjecting(false);
     }
-  }, [signalType, market]);
+  }, [signalType, injectMarket]);
 
   const togglePause = useCallback(async () => {
     const res = await fetch("/api/runs", {
@@ -93,14 +133,42 @@ export default function Dashboard() {
               {connected ? "Live" : "Disconnected"}
             </span>
 
+            <div className="relative">
+              <button
+                onClick={() => setShowCityPicker((s) => !s)}
+                className="rounded-md bg-zinc-800 border border-zinc-700 text-xs px-2 py-1.5"
+              >
+                Cities ({activeMarkets.length})
+              </button>
+              {showCityPicker && (
+                <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl p-2 max-h-64 overflow-y-auto">
+                  {INJECTABLE_MARKETS.map((m) => (
+                    <label
+                      key={m.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-zinc-800 cursor-pointer text-xs"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={activeMarkets.includes(m.id)}
+                        onChange={() => toggleCity(m.id)}
+                        className="rounded"
+                      />
+                      <span>{m.label}</span>
+                      <span className="ml-auto text-zinc-600">{m.id}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <select
-              value={market}
-              onChange={(e) => setMarket(e.target.value as Market)}
+              value={injectMarket}
+              onChange={(e) => setInjectMarket(e.target.value as Market)}
               className="rounded-md bg-zinc-800 border border-zinc-700 text-xs px-2 py-1.5"
             >
-              {MARKETS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
+              {INJECTABLE_MARKETS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
                 </option>
               ))}
             </select>
@@ -137,6 +205,20 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        <div className="max-w-7xl mx-auto px-4 pb-2 flex flex-wrap gap-1.5">
+          {activeMarkets.map((id) => {
+            const label = MARKETS.find((m) => m.id === id)?.label ?? id;
+            return (
+              <span
+                key={id}
+                className="rounded-full bg-zinc-800 border border-zinc-700 text-[10px] px-2 py-0.5 text-zinc-400"
+              >
+                {label}
+              </span>
+            );
+          })}
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -145,7 +227,7 @@ export default function Dashboard() {
             <span className="w-2 h-2 rounded-full bg-blue-400" />
             Live Signal Feed
           </h2>
-          <SignalFeed events={events} />
+          <SignalFeed events={events} filterMarkets={activeMarkets} />
         </section>
 
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
