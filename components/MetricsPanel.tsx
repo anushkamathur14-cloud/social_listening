@@ -123,6 +123,7 @@ export function MetricsPanel({ events, selectedChannels }: MetricsPanelProps) {
   const [loading, setLoading] = useState(true);
 
   const routedCount = events.filter((e) => e.type === "campaign_published").length;
+  const perfEventCount = events.filter((e) => e.type === "performance_update").length;
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -163,7 +164,7 @@ export function MetricsPanel({ events, selectedChannels }: MetricsPanelProps) {
 
   useEffect(() => {
     fetchDashboard();
-  }, [fetchDashboard, routedCount]);
+  }, [fetchDashboard, routedCount, perfEventCount]);
 
   const rows = useMemo(() => {
     const fromEvents = buildFromEvents(events);

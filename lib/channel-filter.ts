@@ -52,10 +52,25 @@ export function countPendingForChannels(
 ): number {
   const set = channelSet(selected);
   const chMap = buildCreativeChannelMap(events);
+
+  const publishedIds = new Set<string>();
+  for (const e of events.filter((ev) => ev.type === "campaign_published")) {
+    const c = e.data.creative as { id: string };
+    if (c?.id) publishedIds.add(c.id);
+  }
+  for (const e of events.filter((ev) => ev.type === "creative_generated")) {
+    const c = e.data.creative as { id: string; complianceStatus?: string };
+    if (c?.id && c.complianceStatus === "published") {
+      publishedIds.add(c.id);
+    }
+  }
+
   return events.filter((e) => {
     if (e.type !== "compliance_result") return false;
     if (e.data.status !== "pending_review") return false;
-    const ch = chMap.get(e.data.creativeId as string);
+    const creativeId = e.data.creativeId as string;
+    if (publishedIds.has(creativeId)) return false;
+    const ch = chMap.get(creativeId);
     return ch ? set.has(ch) : false;
   }).length;
 }

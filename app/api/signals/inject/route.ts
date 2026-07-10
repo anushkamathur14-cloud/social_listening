@@ -13,13 +13,31 @@ export async function POST(req: NextRequest) {
   const channels = body.channels as Channel[] | undefined;
   const llm = llmFromCredentials(body.llm as LlmCredentials | undefined);
 
-  const trigger = await injectSignal(type, market, channels, llm);
+  const result = await injectSignal(type, market, channels, llm);
+
+  let signal = null;
+  if (result?.signalId) {
+    const { getSignalById } = await import("@/lib/triggers/engine");
+    const row = await getSignalById(result.signalId);
+    if (row) {
+      signal = {
+        id: row.id,
+        type: row.type,
+        market: row.market,
+        severity: row.severity,
+        payload: JSON.parse(row.payload),
+        detectedAt: row.detectedAt,
+      };
+    }
+  }
 
   return NextResponse.json({
     ok: true,
-    triggered: !!trigger?.trigger,
-    trigger: trigger?.trigger ?? null,
-    signalId: trigger?.signalId ?? null,
-    pipelineStarted: trigger?.pipelineStarted ?? false,
+    triggered: !!result?.trigger,
+    trigger: result?.trigger ?? null,
+    signalId: result?.signalId ?? null,
+    triggerId: result?.trigger?.id ?? null,
+    signal,
+    pipelineStarted: result?.pipelineStarted ?? false,
   });
 }

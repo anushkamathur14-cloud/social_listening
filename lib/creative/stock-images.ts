@@ -16,7 +16,7 @@ export interface StockImage {
 const CHANNEL_DIMS: Record<Channel, { w: number; h: number } | null> = {
   meta: { w: 1080, h: 1080 },
   smartly: { w: 1080, h: 1080 },
-  display: { w: 1200, h: 628 },
+  display: { w: 300, h: 250 },
   google_search: null,
 };
 

@@ -25,6 +25,8 @@ interface CreativeCardProps {
   onPublish?: (creativeId: string) => void;
   integrations: IntegrationConfig;
   selectedChannels: Channel[];
+  highlightSignalId?: string | null;
+  publishingCreativeId?: string | null;
 }
 
 type ViewMode = "compare" | "grid";
@@ -34,6 +36,8 @@ export function CreativeCard({
   onPublish,
   integrations,
   selectedChannels,
+  highlightSignalId,
+  publishingCreativeId,
 }: CreativeCardProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("compare");
   const [mobilePreview, setMobilePreview] = useState(true);
@@ -89,6 +93,8 @@ export function CreativeCard({
           integrations={integrations}
           mobilePreview={mobilePreview}
           selectedChannels={selectedChannels}
+          highlightSignalId={highlightSignalId}
+          publishingCreativeId={publishingCreativeId}
         />
       ) : (
         <CreativeGrid
@@ -96,6 +102,7 @@ export function CreativeCard({
           onPublish={onPublish}
           integrations={integrations}
           mobilePreview={mobilePreview}
+          publishingCreativeId={publishingCreativeId}
         />
       )}
     </div>
@@ -122,11 +129,13 @@ function CreativeGrid({
   onPublish,
   integrations,
   mobilePreview,
+  publishingCreativeId,
 }: {
   items: GridItem[];
   onPublish?: (id: string) => void;
   integrations: IntegrationConfig;
   mobilePreview: boolean;
+  publishingCreativeId?: string | null;
 }) {
   if (items.length === 0) {
     return (
@@ -202,16 +211,21 @@ function CreativeGrid({
                 <button
                   type="button"
                   onClick={() => onPublish(creative.id)}
-                  className="w-full rounded-lg bg-[var(--uber-green)] hover:bg-[var(--uber-green-dark)] text-white py-2 font-semibold"
+                  disabled={publishingCreativeId === creative.id}
+                  className="w-full rounded-lg bg-[var(--uber-green)] hover:bg-[var(--uber-green-dark)] disabled:opacity-60 disabled:cursor-wait text-white py-2 font-semibold"
                 >
-                  Approve & Route → {spec.publishLabel}
+                  {publishingCreativeId === creative.id
+                    ? "Routing…"
+                    : `Approve & Route → ${spec.publishLabel}`}
                 </button>
               )}
 
               {creative.status === "published" && (
-                <p className="text-[10px] text-gray-600">
-                  {creative.simulated === false ? "Live-ready route" : "Simulated route"} via{" "}
-                  {creative.publishAdapter}
+                <p className="text-[10px] text-green-700 font-medium">
+                  {creative.simulated === false
+                    ? "Approved & live now"
+                    : "Approved & live (simulated)"}{" "}
+                  via {creative.publishAdapter}
                 </p>
               )}
             </div>
@@ -259,7 +273,8 @@ function buildGridItems(events: AppEvent[], selectedChannels: Channel[]): GridIt
   return creativeEvents.map((event) => {
     const c = event.data.creative as GridItem & { complianceStatus: string };
     const pub = publishMeta.get(c.id);
-    const isPublished = publishedIds.has(c.id);
+    const isPublished =
+      publishedIds.has(c.id) || c.complianceStatus === "published";
     return {
       ...c,
       status: isPublished

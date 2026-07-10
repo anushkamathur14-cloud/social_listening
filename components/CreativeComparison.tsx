@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { AdPreview, type AdCreative } from "@/components/AdPreview";
 import { routeStatusLabel } from "@/components/IntegrationsCallout";
 import { SearchVariantsTable } from "@/components/SearchVariantsTable";
@@ -30,6 +30,7 @@ const CHANNEL_ORDER: Channel[] = [
 
 interface CreativeGroup {
   triggerId: string;
+  signalId?: string;
   market: string;
   signalSummary: string;
   sourceUrl?: string;
@@ -52,6 +53,8 @@ interface CreativeComparisonProps {
   integrations: IntegrationConfig;
   mobilePreview?: boolean;
   selectedChannels: Channel[];
+  highlightSignalId?: string | null;
+  publishingCreativeId?: string | null;
 }
 
 export function CreativeComparison({
@@ -60,12 +63,21 @@ export function CreativeComparison({
   integrations,
   mobilePreview = true,
   selectedChannels,
+  highlightSignalId,
+  publishingCreativeId,
 }: CreativeComparisonProps) {
+  const highlightRef = useRef<HTMLDivElement>(null);
   const channelOrder = CHANNEL_ORDER.filter((ch) => selectedChannels.includes(ch));
   const groups = useMemo(
-    () => buildGroups(events, selectedChannels),
-    [events, selectedChannels]
+    () => buildGroups(events, selectedChannels, highlightSignalId),
+    [events, selectedChannels, highlightSignalId]
   );
+
+  useEffect(() => {
+    if (highlightSignalId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [highlightSignalId, groups.length]);
 
   if (groups.length === 0) {
     return (
@@ -80,10 +92,17 @@ export function CreativeComparison({
 
   return (
     <div className="space-y-6 overflow-y-auto max-h-[780px] pr-1">
-      {groups.map((group) => (
+      {groups.map((group) => {
+        const isHighlighted = highlightSignalId === group.signalId;
+        return (
         <div
           key={group.triggerId}
-          className="rounded-xl border border-gray-200 bg-white overflow-hidden"
+          ref={isHighlighted ? highlightRef : undefined}
+          className={`rounded-xl border overflow-hidden transition-shadow ${
+            isHighlighted
+              ? "border-black ring-2 ring-black/10 bg-white shadow-md"
+              : "border-gray-200 bg-white"
+          }`}
         >
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-start gap-3">
             <div className="flex-1 min-w-0">
@@ -175,25 +194,23 @@ export function CreativeComparison({
                         <button
                           type="button"
                           onClick={() => onPublish(creative.id)}
-                          className="w-full rounded-lg bg-green-600 hover:bg-green-700 text-white py-2 font-semibold text-[11px] transition-colors"
+                          disabled={publishingCreativeId === creative.id}
+                          className="w-full rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-wait text-white py-2 font-semibold text-[11px] transition-colors"
                         >
-                          Approve & Route → {spec.publishLabel}
-                          {liveReady ? " · live-ready" : " · simulated"}
+                          {publishingCreativeId === creative.id
+                            ? "Routing…"
+                            : `Approve & Route → ${spec.publishLabel}${liveReady ? " · live-ready" : " · simulated"}`}
                         </button>
                       )}
 
                       {creative.status === "published" && (
                         <div className="text-[10px] text-gray-600 pt-1 border-t border-gray-200">
                           <p>
-                            {creative.simulated === false ? (
-                              <span className="text-green-700 font-medium">
-                                Payload routed with your API credentials
-                              </span>
-                            ) : (
-                              <span className="text-amber-700">
-                                Simulated route — no ad spend
-                              </span>
-                            )}{" "}
+                            <span className="text-green-700 font-medium">
+                              {creative.simulated === false
+                                ? "Approved & live now"
+                                : "Approved & live (simulated)"}
+                            </span>{" "}
                             via {creative.publishAdapter}
                           </p>
                           {creative.platformId && (
@@ -232,12 +249,17 @@ export function CreativeComparison({
               </div>
             ))}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function buildGroups(events: AppEvent[], selectedChannels: Channel[]): CreativeGroup[] {
+function buildGroups(
+  events: AppEvent[],
+  selectedChannels: Channel[],
+  highlightSignalId?: string | null
+): CreativeGroup[] {
   const allowed = channelSet(selectedChannels);
   const creativeEvents = events
     .filter((e) => e.type === "creative_generated")
@@ -281,6 +303,7 @@ function buildGroups(events: AppEvent[], selectedChannels: Channel[]): CreativeG
   for (const event of creativeEvents) {
     const c = event.data.creative as AdCreative & {
       triggerId: string;
+      signalId?: string;
       complianceStatus: string;
       specLabel?: string;
       channelPayload?: ChannelPayload;
@@ -294,6 +317,7 @@ function buildGroups(events: AppEvent[], selectedChannels: Channel[]): CreativeG
     if (!byTrigger.has(triggerId)) {
       byTrigger.set(triggerId, {
         triggerId,
+        signalId: c.signalId,
         market: c.market,
         signalSummary: c.signalSummary ?? c.signalContext ?? "Signal detected",
         sourceUrl: c.sourceUrl,
@@ -303,7 +327,8 @@ function buildGroups(events: AppEvent[], selectedChannels: Channel[]): CreativeG
     }
 
     const pub = publishMeta.get(c.id);
-    const isPublished = publishedIds.has(c.id);
+    const isPublished =
+      publishedIds.has(c.id) || c.complianceStatus === "published";
 
     byTrigger.get(triggerId)!.creatives.push({
       ...c,
@@ -318,9 +343,19 @@ function buildGroups(events: AppEvent[], selectedChannels: Channel[]): CreativeG
     });
   }
 
-  return Array.from(byTrigger.values())
+  const groups = Array.from(byTrigger.values())
     .filter((g) => g.creatives.length > 0)
     .sort((a, b) => b.creatives.length - a.creatives.length)
     .slice(-6)
     .reverse();
+
+  if (highlightSignalId) {
+    const idx = groups.findIndex((g) => g.signalId === highlightSignalId);
+    if (idx > 0) {
+      const [match] = groups.splice(idx, 1);
+      groups.unshift(match);
+    }
+  }
+
+  return groups;
 }

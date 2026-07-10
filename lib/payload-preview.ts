@@ -1,4 +1,4 @@
-import { CHANNEL_MAP, type Channel } from "@/lib/channels";
+import { CHANNEL_MAP, displayMarketingImages, type Channel } from "@/lib/channels";
 import { toMetaPayload } from "@/lib/deploy/adapters/meta";
 import { toSmartlyPayload } from "@/lib/deploy/adapters/smartly";
 import type { CreativeVariant } from "@/lib/types";
@@ -52,12 +52,7 @@ export function buildPublishPayloadPreview(
             shortHeadlines: payload.shortHeadlines,
             longHeadlines: payload.longHeadlines,
             descriptions: payload.descriptions,
-            marketingImages: [
-              {
-                url: creative.imageUrl,
-                dimensions: `${spec.imageWidth}x${spec.imageHeight}`,
-              },
-            ],
+            marketingImages: displayMarketingImages(creative.imageUrl, spec),
             clickThroughUrl: creative.attribution,
           },
         };
@@ -66,7 +61,7 @@ export function buildPublishPayloadPreview(
         displayName: creative.headline,
         imageUrl: creative.imageUrl,
         clickThroughUrl: creative.attribution,
-        dimensions: `${spec.imageWidth}x${spec.imageHeight}`,
+        dimensions: spec.imageAssets?.map((img) => `${img.width}x${img.height}`).join(", "),
       };
     default:
       return { channel: creative.channel, headline: creative.headline };

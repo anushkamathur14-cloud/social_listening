@@ -1,6 +1,6 @@
 "use client";
 
-import { CHANNELS, type Channel } from "@/lib/channels";
+import { CHANNELS, channelImageLabel, type Channel } from "@/lib/channels";
 
 const CHANNEL_ICONS: Record<Channel, string> = {
   meta: "◉",
@@ -42,9 +42,7 @@ export function ChannelSelector({ selected, onChange }: ChannelSelectorProps) {
             <span className="mr-1 opacity-70">{CHANNEL_ICONS[ch.id]}</span>
             {ch.label.split("(")[0].trim()}
             <span className="ml-1.5 opacity-50 text-[9px]">
-              {ch.format === "image"
-                ? `${ch.imageWidth}×${ch.imageHeight}`
-                : "text"}
+              {ch.format === "image" ? channelImageLabel(ch) : "text"}
             </span>
           </button>
         );

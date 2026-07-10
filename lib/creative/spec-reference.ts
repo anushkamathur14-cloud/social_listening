@@ -53,10 +53,10 @@ export function platformSpecRows(channel: Channel): Array<{ asset: string; spec:
         { asset: "Long Headline", spec: `≤${s.longHeadlineMax} chars`, note: "Up to 5 variants" },
         { asset: "Description", spec: `≤${s.descriptionMax} chars`, note: "Up to 5 variants" },
         { asset: "Business Name", spec: `≤${s.businessNameMax} chars`, note: "" },
-        ...(s.imageAssets ?? []).slice(0, 2).map((img) => ({
+        ...(s.imageAssets ?? []).map((img) => ({
           asset: img.label,
           spec: `${img.width} × ${img.height}`,
-          note: img.aspectRatio,
+          note: img.notes ?? img.aspectRatio,
         })),
       ];
     case "google_search":

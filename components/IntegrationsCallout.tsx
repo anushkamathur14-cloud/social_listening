@@ -33,7 +33,9 @@ export function routeStatusLabel(
   simulated?: boolean
 ): string {
   if (status === "published") {
-    return simulated === false ? "routed · live-ready" : "routed · simulated";
+    return simulated === false
+      ? "Approved & live now"
+      : "Approved & live (simulated)";
   }
   if (status === "pending_review") return "awaiting your approval";
   return status.replace("_", " ");

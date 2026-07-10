@@ -44,9 +44,16 @@ const SEVERITY_COLORS: Record<string, string> = {
 interface SignalFeedProps {
   events: AppEvent[];
   filters: SignalFeedFilters;
+  onSignalClick?: (signalId: string) => void;
+  highlightSignalId?: string | null;
 }
 
-export function SignalFeed({ events, filters }: SignalFeedProps) {
+export function SignalFeed({
+  events,
+  filters,
+  onSignalClick,
+  highlightSignalId,
+}: SignalFeedProps) {
   const signalEvents = events
     .filter((e) => e.type === "signal_detected")
     .filter((e) => {
@@ -85,11 +92,35 @@ export function SignalFeed({ events, filters }: SignalFeedProps) {
 
         const meta = TYPE_META[signal.type] ?? TYPE_META.trends;
         const uaHint = signalVerticalHint(signal.type);
+        const signalId = (event.data.signal as { id?: string }).id;
+        const isHighlighted = highlightSignalId === signalId;
+        const clickable = Boolean(onSignalClick && signalId);
 
         return (
           <div
             key={event.id}
-            className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm hover:border-gray-300 transition-colors"
+            role={clickable ? "button" : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            onClick={
+              clickable
+                ? () => onSignalClick?.(signalId!)
+                : undefined
+            }
+            onKeyDown={
+              clickable
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSignalClick?.(signalId!);
+                    }
+                  }
+                : undefined
+            }
+            className={`rounded-lg border bg-gray-50 p-3 text-sm transition-colors ${
+              isHighlighted
+                ? "border-black ring-2 ring-black/10"
+                : "border-gray-200 hover:border-gray-300"
+            } ${clickable ? "cursor-pointer hover:bg-white" : ""}`}
           >
             <div className="flex items-center gap-2 mb-2">
               <span
@@ -133,10 +164,17 @@ export function SignalFeed({ events, filters }: SignalFeedProps) {
                 href={signal.payload.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
                 className="inline-flex items-center gap-1 mt-2 text-xs text-green-700 font-medium hover:underline"
               >
                 ↗ {signal.payload.sourceLabel ?? "Verify source"}
               </a>
+            )}
+
+            {clickable && (
+              <p className="text-[10px] text-gray-500 mt-2 font-medium">
+                Click to view creatives →
+              </p>
             )}
           </div>
         );

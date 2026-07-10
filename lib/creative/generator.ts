@@ -316,7 +316,8 @@ export async function generateCreatives(
           return `${c}: RSA — ${s.headlineCount} headlines≤${s.headlineMax}, ${s.descriptionCount} descriptions≤${s.descriptionMax}, paths≤${s.pathMax}`;
         }
         if (c === "display") {
-          return `${c}: short headline≤${s.headlineMax}, long≤${s.longHeadlineMax}, description≤${s.descriptionMax}, business name≤${s.businessNameMax}`;
+          const sizes = (s.imageAssets ?? []).map((img) => `${img.width}×${img.height}`).join(", ");
+          return `${c}: IAB banners ${sizes} · short headline≤${s.headlineMax}, long≤${s.longHeadlineMax}, description≤${s.descriptionMax}, business name≤${s.businessNameMax}`;
         }
         return `${c}: headline≤${s.headlineMax}, copy≤${s.copyMax}`;
       })

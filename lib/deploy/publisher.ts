@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { CHANNEL_MAP, type Channel as AdChannel } from "../channels";
+import { CHANNEL_MAP, displayMarketingImages, type Channel as AdChannel } from "../channels";
 import {
   channelProvider,
   isProviderConfigured,
@@ -91,12 +91,7 @@ export async function publishToChannel(
             shortHeadlines: creative.channelPayload.shortHeadlines,
             longHeadlines: creative.channelPayload.longHeadlines,
             descriptions: creative.channelPayload.descriptions,
-            marketingImages: [
-              {
-                url: creative.imageUrl,
-                dimensions: `${spec.imageWidth}x${spec.imageHeight}`,
-              },
-            ],
+            marketingImages: displayMarketingImages(creative.imageUrl, spec),
             clickThroughUrl: creative.attribution,
           },
         };
@@ -105,7 +100,7 @@ export async function publishToChannel(
           displayName: creative.headline,
           imageUrl: creative.imageUrl,
           clickThroughUrl: creative.attribution,
-          dimensions: `${spec.imageWidth}x${spec.imageHeight}`,
+          dimensions: spec.imageAssets?.map((img) => `${img.width}x${img.height}`).join(", "),
         };
       }
       break;

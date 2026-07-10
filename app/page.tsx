@@ -18,10 +18,12 @@ import { ChannelFilterBanner } from "@/components/ChannelFilterBanner";
 import { countPendingForChannels } from "@/lib/channel-filter";
 import { DEFAULT_CHANNELS } from "@/lib/channels";
 import {
-  creativesToEvents,
+  campaignPayloadToEvents,
+  campaignPublishedToEvent,
   mergeEventHistory,
-  signalsToEvents,
+  signalRowToEvent,
 } from "@/lib/events/hydrate";
+import { isStreamableEvent } from "@/lib/events/signal-link";
 import {
   isLlmConfigured,
   isProviderConfigured,
@@ -76,7 +78,26 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("how-it-works");
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [integrations, setIntegrations] = useState<IntegrationConfig>({});
+  const [highlightSignalId, setHighlightSignalId] = useState<string | null>(
+    null
+  );
+  const [publishingCreativeId, setPublishingCreativeId] = useState<string | null>(
+    null
+  );
   const cityPickerRef = useRef<HTMLDivElement>(null);
+
+  const refreshCampaignEvents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/campaigns");
+      const data = await res.json();
+      const hydrated = campaignPayloadToEvents(data);
+      if (hydrated.length > 0) {
+        setEvents((prev) => mergeEventHistory(prev, hydrated));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     setIntegrations(loadIntegrations());
@@ -96,10 +117,7 @@ export default function Dashboard() {
     fetch("/api/campaigns")
       .then((r) => r.json())
       .then((data) => {
-        const hydrated = [
-          ...creativesToEvents(data.creatives ?? []),
-          ...signalsToEvents(data.signals ?? []),
-        ];
+        const hydrated = campaignPayloadToEvents(data);
         if (hydrated.length > 0) {
           setEvents((prev) => mergeEventHistory(prev, hydrated));
         }
@@ -113,13 +131,13 @@ export default function Dashboard() {
     source.onerror = () => setConnected(false);
     source.onmessage = (msg) => {
       try {
-        const event = JSON.parse(msg.data) as AppEvent;
-        if (event.type) {
-          setEvents((prev) => [...prev.slice(-199), event]);
-          if (event.type === "creative_generated") {
-            setActiveTab("creatives");
-            setInjectMessage(null);
-          }
+        const event = JSON.parse(msg.data) as AppEvent & { type: string };
+        if (!event.type || !isStreamableEvent(event)) {
+          return;
+        }
+        setEvents((prev) => mergeEventHistory(prev, [event as AppEvent]));
+        if (event.type === "creative_generated") {
+          setInjectMessage(null);
         }
       } catch {
         /* heartbeat */
@@ -214,6 +232,11 @@ export default function Dashboard() {
     [saveSettings]
   );
 
+  const onSignalClick = useCallback((signalId: string) => {
+    setHighlightSignalId(signalId);
+    setActiveTab("creatives");
+  }, []);
+
   const injectSignal = useCallback(
     async (type?: SignalType, market?: Market) => {
       setInjecting(true);
@@ -231,8 +254,26 @@ export default function Dashboard() {
           }),
         });
         const data = await res.json();
+        if (data.signal) {
+          setEvents((prev) =>
+            mergeEventHistory(prev, [
+              signalRowToEvent({
+                id: data.signal.id,
+                type: data.signal.type,
+                market: data.signal.market,
+                severity: data.signal.severity,
+                payload: JSON.stringify(data.signal.payload),
+                detectedAt: data.signal.detectedAt,
+              }),
+            ])
+          );
+          setHighlightSignalId(data.signal.id);
+        }
+        await refreshCampaignEvents();
         if (data.pipelineStarted) {
-          setInjectMessage("Signal injected — building channel creatives…");
+          setInjectMessage(
+            "Signal detected — creatives building. Click the signal in the feed to review them."
+          );
         } else if (!data.triggered) {
           setInjectMessage(
             "Signal saved but pipeline did not start. Check cities/channels or resume pipeline."
@@ -244,7 +285,13 @@ export default function Dashboard() {
         setInjecting(false);
       }
     },
-    [signalType, injectMarket, selectedChannels, integrations.llm]
+    [
+      signalType,
+      injectMarket,
+      selectedChannels,
+      integrations.llm,
+      refreshCampaignEvents,
+    ]
   );
 
   const runScenario = useCallback(
@@ -272,14 +319,53 @@ export default function Dashboard() {
 
   const publishCreative = useCallback(
     async (creativeId: string) => {
-      const creds = loadIntegrations();
-      await fetch(`/api/creatives/${creativeId}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ integrations: creds }),
-      });
+      setPublishingCreativeId(creativeId);
+      try {
+        const creds = loadIntegrations();
+        const res = await fetch(`/api/creatives/${creativeId}/publish`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ integrations: creds }),
+        });
+        const data = await res.json();
+        if (data.ok && data.campaign && data.creative) {
+          const event = campaignPublishedToEvent({
+            campaign: data.campaign,
+            creative: data.creative,
+            publishAdapter: data.campaign.publishAdapter,
+            publishPayload: data.publishPayload,
+            simulated: data.simulated,
+            message: data.message,
+          });
+          setEvents((prev) => {
+            const merged = mergeEventHistory(prev, [event]);
+            return merged.map((e) => {
+              if (e.type === "creative_generated") {
+                const c = e.data.creative as { id: string };
+                if (c.id === creativeId) {
+                  return {
+                    ...e,
+                    data: {
+                      ...e.data,
+                      creative: { ...c, complianceStatus: "published" },
+                    },
+                  };
+                }
+              }
+              return e;
+            });
+          });
+        }
+        await refreshCampaignEvents();
+        // Optimizer runs ~2.5s after publish — refresh again for metrics
+        setTimeout(() => {
+          void refreshCampaignEvents();
+        }, 3500);
+      } finally {
+        setPublishingCreativeId(null);
+      }
     },
-    []
+    [refreshCampaignEvents]
   );
 
   const configuredCount = (
@@ -552,7 +638,12 @@ export default function Dashboard() {
                   filters={signalFilters}
                   signalCount={filteredSignalCount}
                 />
-                <SignalFeed events={events} filters={signalFilters} />
+                <SignalFeed
+                  events={events}
+                  filters={signalFilters}
+                  onSignalClick={onSignalClick}
+                  highlightSignalId={highlightSignalId}
+                />
               </div>
               <SignalIdeator
                 events={events}
@@ -599,6 +690,8 @@ export default function Dashboard() {
               onPublish={publishCreative}
               integrations={integrations}
               selectedChannels={selectedChannels}
+              highlightSignalId={highlightSignalId}
+              publishingCreativeId={publishingCreativeId}
             />
           </section>
         )}

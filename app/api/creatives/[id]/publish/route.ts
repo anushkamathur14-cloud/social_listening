@@ -23,9 +23,12 @@ export async function POST(
     return NextResponse.json({ error: "Creative not found" }, { status: 404 });
   }
 
+  const { creative, ...campaign } = result;
+
   return NextResponse.json({
     ok: true,
-    campaign: result,
+    campaign,
+    creative,
     publishPayload: result.publishPayload,
     simulated: result.simulated,
     message: result.simulated

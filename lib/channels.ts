@@ -74,22 +74,23 @@ export const CHANNELS: ChannelSpec[] = [
     longHeadlineMax: 90,
     descriptionMax: 90,
     businessNameMax: 25,
-    imageWidth: 1200,
-    imageHeight: 628,
-    aspectRatio: "1.91:1",
+    imageWidth: 300,
+    imageHeight: 250,
+    aspectRatio: "6:5",
     imageAssets: [
-      { label: "Landscape", width: 1200, height: 628, aspectRatio: "1.91:1" },
-      { label: "Square", width: 1200, height: 1200, aspectRatio: "1:1" },
-      { label: "Logo square", width: 1200, height: 1200, aspectRatio: "1:1" },
-      { label: "Logo landscape", width: 1200, height: 300, aspectRatio: "4:1" },
+      { label: "Medium Rectangle", width: 300, height: 250, aspectRatio: "6:5", notes: "IAB standard · most common" },
+      { label: "Leaderboard", width: 728, height: 90, aspectRatio: "728:90", notes: "IAB standard · desktop header" },
+      { label: "Half Page", width: 300, height: 600, aspectRatio: "1:2", notes: "IAB standard · high impact" },
+      { label: "Mobile Banner", width: 320, height: 50, aspectRatio: "32:5", notes: "IAB standard · mobile" },
+      { label: "Billboard", width: 970, height: 250, aspectRatio: "970:250", notes: "IAB standard · premium desktop" },
     ],
     headlineCount: 5,
     descriptionCount: 5,
     ctaOptions: ["Learn More"],
     bestPractices: [
+      "Standard IAB banner sizes — 300×250, 728×90, 300×600, 320×50, 970×250",
       "Responsive Display Ads — up to 5 short + 5 long headlines",
-      "Lifestyle + product + logo + promotional images",
-      "Business name ≤25 characters",
+      "Export each placement size · business name ≤25 characters",
     ],
     publishAdapter: "dv360",
     publishLabel: "DV360 / Google Display",
@@ -164,8 +165,33 @@ export function specSummary(channel: Channel): string {
   if (s.format === "text") {
     return `${s.headlineCount} headlines · ${s.descriptionCount} descriptions · ${s.headlineMax} chars/headline`;
   }
+  if (channel === "display" && s.imageAssets?.length) {
+    const sizes = s.imageAssets.map((img) => `${img.width}×${img.height}`).join(", ");
+    return `${sizes} · ${s.copyLabel} ${s.copyTarget}–${s.copyMax} chars`;
+  }
   const img = s.imageAssets?.[0];
   return img
     ? `${img.width}×${img.height} (${img.aspectRatio}) · ${s.copyLabel} ${s.copyTarget}–${s.copyMax} chars`
     : `${s.copyLabel} ${s.copyTarget}–${s.copyMax} chars`;
+}
+
+export function channelImageLabel(spec: ChannelSpec): string {
+  if (spec.id === "display" && spec.imageAssets?.length) {
+    return `${spec.imageAssets.length} IAB sizes`;
+  }
+  if (spec.imageWidth && spec.imageHeight) {
+    return `${spec.imageWidth}×${spec.imageHeight}`;
+  }
+  return "image";
+}
+
+export function displayMarketingImages(
+  imageUrl: string | undefined,
+  spec: ChannelSpec
+): Array<{ url?: string; dimensions: string; label: string }> {
+  return (spec.imageAssets ?? []).map((img) => ({
+    url: imageUrl,
+    dimensions: `${img.width}x${img.height}`,
+    label: img.label,
+  }));
 }

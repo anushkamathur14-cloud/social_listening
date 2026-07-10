@@ -31,7 +31,7 @@ export interface AdCreative {
 const CHANNEL_FRAME: Record<Channel, { label: string; aspect: string; portrait?: string }> = {
   meta: { label: "Instagram Feed", aspect: "aspect-square", portrait: "aspect-[4/5]" },
   smartly: { label: "Smartly Template", aspect: "aspect-square", portrait: "aspect-[4/5]" },
-  display: { label: "Display Banner", aspect: "aspect-[1.91/1]" },
+  display: { label: "Display Banner", aspect: "aspect-[6/5]" },
   google_search: { label: "Google Search", aspect: "" },
 };
 

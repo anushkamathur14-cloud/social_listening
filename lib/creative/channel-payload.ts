@@ -101,7 +101,13 @@ export function buildDisplayExtras(
       truncate(`Trusted mobility in ${city}. Rides & Eats in one app.`, 90),
       truncate(`Book today. ${brand.promoDisclaimer}`, 90),
     ],
-    imagesNeeded: ["Lifestyle", "Product hero", "Brand logo", "Promotional", "Category"],
+    imagesNeeded: [
+      "300×250 Medium Rectangle",
+      "728×90 Leaderboard",
+      "300×600 Half Page",
+      "320×50 Mobile Banner",
+      "970×250 Billboard",
+    ],
   };
 }
 

@@ -534,7 +534,12 @@ export async function publishCreativeById(
     optimizeCampaigns().catch(console.error);
   }, 2500);
 
-  return published;
+  const publishedCreative = {
+    ...creative,
+    complianceStatus: "published" as const,
+  };
+
+  return { ...published, creative: publishedCreative };
 }
 
 // Keep legacy approve endpoint working
