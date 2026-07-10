@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Signal-Led Creative Response Demo",
+  title: "Bites & Brews — Signal-Led F&B Ads",
   description:
-    "Real-time event-driven ad creative pipeline — detect signals, generate, validate, launch, optimize.",
+    "Real-time signal-driven ad pipeline for an F&B brand — snacks, food, beer & beverages.",
 };
 
 export default function RootLayout({

@@ -22,46 +22,46 @@ const MOCK_THREADS: Array<{
   market: Market;
 }> = [
   {
-    subreddit: "travel",
-    title: "ORD delays are insane today — 3 hour wait",
+    subreddit: "food",
+    title: "Best airport snacks when you're stuck for hours?",
     snippet:
-      "Anyone else stuck at O'Hare? Flights backed up due to weather. Terminal 1 is packed.",
+      "ORD delay hit 3 hours. What do you order for delivery to the terminal? Need beer and something salty.",
     score: 847,
     comments: 234,
     market: "ORD",
   },
   {
-    subreddit: "Seattle",
-    title: "I-5 flooding near downtown — commute nightmare",
+    subreddit: "beer",
+    title: "Seattle craft beer delivery — who's fastest?",
     snippet:
-      "Multiple lanes closed. Allow 2x normal travel time if heading south from Capitol Hill.",
+      "Storm rolling in, don't want to drive. Looking for IPA 6-packs delivered tonight in Capitol Hill.",
     score: 956,
     comments: 312,
     market: "SEA",
   },
   {
     subreddit: "nyc",
-    title: "Subway flooding again — what's the backup plan?",
+    title: "Comfort food recs for tonight's thunderstorm",
     snippet:
-      "Lines 4/5 suspended. Need alternatives for commute tomorrow. Any bus routes worth trying?",
+      "Subway flooded, staying in. What's your go-to delivery — soup, wings, beer? Need a solid combo.",
     score: 1203,
     comments: 456,
     market: "NYC",
   },
   {
     subreddit: "LosAngeles",
-    title: "LA heat wave — power outages starting in valley",
+    title: "Heat wave snack & drink haul — what are you ordering?",
     snippet:
-      "108°F and rolling blackouts. Stock up on water and batteries before shelves clear.",
+      "108°F — stocked up on cold beer, sparkling water, and frozen margarita mix. What else?",
     score: 623,
     comments: 189,
     market: "LAX",
   },
   {
     subreddit: "Miami",
-    title: "Tropical storm prep — what's flying off shelves?",
+    title: "Game day spread ideas — feeding 8 people",
     snippet:
-      "Hardware stores wiped out of generators. Sharing what's still in stock by neighborhood.",
+      "Dolphins game tomorrow. Need wings, sliders, chips, and a beer variety pack delivered by morning.",
     score: 734,
     comments: 201,
     market: "MIA",

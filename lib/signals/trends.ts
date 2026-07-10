@@ -7,13 +7,13 @@ const MOCK_TRENDS: Array<{
   spikeRatio: number;
   market: Market;
 }> = [
-  { query: "portable charger shortage", spikeRatio: 3.2, market: "US" },
-  { query: "flight delay compensation", spikeRatio: 2.8, market: "US" },
-  { query: "NYC subway flooding", spikeRatio: 4.1, market: "NYC" },
-  { query: "Seattle rain gear", spikeRatio: 3.0, market: "SEA" },
-  { query: "LA heat wave essentials", spikeRatio: 2.5, market: "LAX" },
-  { query: "Chicago winter gear", spikeRatio: 2.1, market: "ORD" },
-  { query: "Miami hurricane prep", spikeRatio: 3.5, market: "MIA" },
+  { query: "craft beer delivery near me", spikeRatio: 3.2, market: "US" },
+  { query: "game day snack bundle", spikeRatio: 2.8, market: "US" },
+  { query: "NYC comfort food delivery storm", spikeRatio: 4.1, market: "NYC" },
+  { query: "Seattle beer and snacks delivery", spikeRatio: 3.0, market: "SEA" },
+  { query: "LA heat wave cold beer delivery", spikeRatio: 2.5, market: "LAX" },
+  { query: "Chicago winter soup delivery", spikeRatio: 2.1, market: "ORD" },
+  { query: "Miami hurricane snack prep", spikeRatio: 3.5, market: "MIA" },
   { query: "SF fog driving tips", spikeRatio: 2.3, market: "SFO" },
 ];
 

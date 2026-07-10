@@ -131,12 +131,12 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 py-3 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <div>
-              <h1 className="text-lg font-bold tracking-tight">
-                Signal-Led Creative Response
-              </h1>
-              <p className="text-xs text-zinc-500">
-                Crawl → Insight → Create → Validate → Approve → Publish
-              </p>
+            <h1 className="text-lg font-bold tracking-tight">
+              Bites & Brews — Signal-Led Ads
+            </h1>
+            <p className="text-xs text-zinc-500">
+              F&B · Snacks, food & craft beer · Crawl → Create → Approve → Publish
+            </p>
             </div>
 
             <div className="ml-auto flex flex-wrap items-center gap-2">

@@ -19,7 +19,7 @@ const MOCK_WEATHER: Array<{
   },
   {
     market: "LAX",
-    summary: "Extreme heat advisory — 108°F expected",
+    summary: "Extreme heat advisory — cold beer & frozen treats in high demand",
     severity: "high",
   },
   {

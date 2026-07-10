@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { brand } from "@/lib/brand";
 import { CHANNEL_MAP } from "@/lib/channels";
 import type { AppEvent, Channel } from "@/lib/types";
 
@@ -98,11 +99,11 @@ export function CreativeCard({ events, onPublish }: CreativeCardProps) {
           <div key={`${event.id}-${creative.id}`} className="flex flex-col gap-2">
             <div className="rounded-xl border border-zinc-700 bg-white text-zinc-900 overflow-hidden shadow-lg">
               <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-200 bg-zinc-50">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                  SA
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white text-xs font-bold">
+                  {brand.initials}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold truncate">SignalAds</p>
+                  <p className="text-xs font-semibold truncate">{brand.name}</p>
                   <p className="text-[10px] text-zinc-500">
                     {channelSpec?.label} · {creative.market}
                   </p>

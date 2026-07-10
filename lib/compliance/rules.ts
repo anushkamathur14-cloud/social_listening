@@ -1,3 +1,4 @@
+import { brand } from "../brand";
 import { config } from "../config";
 import { hasAttribution } from "../creative/attribution";
 import type { ComplianceResult, CreativeVariant } from "../types";
@@ -13,6 +14,8 @@ const BLOCKED_WORDS = [
 
 const WEATHER_DISCLAIMER =
   "Offers subject to availability. Weather conditions may affect delivery.";
+
+const ALCOHOL_DISCLAIMER = brand.alcoholDisclaimer;
 
 export function validateCreative(
   creative: CreativeVariant
@@ -60,6 +63,14 @@ export function validateCreative(
   if (isWeatherRelated && !copy.includes("subject to availability")) {
     copy = `${copy} ${WEATHER_DISCLAIMER}`;
     autoFixes.push("Appended weather disclaimer");
+  }
+
+  const mentionsAlcohol =
+    /\b(beer|wine|alcohol|brew|cocktail|spirits|21\+)\b/i.test(copy + headline);
+
+  if (mentionsAlcohol && !copy.toLowerCase().includes("21+")) {
+    copy = `${copy} ${ALCOHOL_DISCLAIMER}`;
+    autoFixes.push("Appended alcohol compliance disclaimer");
   }
 
   const passed =
