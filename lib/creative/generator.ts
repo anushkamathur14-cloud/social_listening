@@ -13,6 +13,8 @@ interface GeneratedCreative {
   copy: string;
   cta: string;
   imagePrompt: string;
+  productOffer?: string;
+  visualTreatment?: string;
 }
 
 function buildCreativeBase(
@@ -31,6 +33,8 @@ function buildCreativeBase(
     copy: template.copy,
     cta: template.cta,
     imagePrompt: template.imagePrompt,
+    productOffer: template.productOffer,
+    visualTreatment: template.visualTreatment,
     signalContext: summary,
     signalSummary: summary,
     sourceUrl: signal.payload.sourceUrl as string | undefined,
@@ -40,88 +44,87 @@ function buildCreativeBase(
   });
 }
 
-function redditCopy(signal: Signal): string {
-  const topic = (signal.payload.topic as string) ?? "Local conversation trending";
-  const snippet = (signal.payload.snippet as string) ?? signal.payload.summary;
-  const city = (signal.payload.city as string) ?? getMarketLabel(signal.market);
-  return `${city} residents are discussing: "${topic}". ${snippet} We built a response tailored to this moment.`;
+function delayMinutes(signal: Signal): number {
+  return (signal.payload.avgDelayMinutes as number) ?? 45;
 }
 
 function mockCreatives(signal: Signal, triggerId: string): CreativeVariant[] {
   const summary = signal.payload.summary as string;
   const marketLabel = getMarketLabel(signal.market);
+  const airport = (signal.payload.airport as string) ?? signal.market;
+  const delay = delayMinutes(signal);
 
   const templates: Record<string, GeneratedCreative[]> = {
     weather: [
       {
         persona: "commuter",
-        headline: "Weather got you stuck?",
-        copy: `${marketLabel}: ${summary.split(":").slice(1).join(":").trim() || summary}. Grab essentials delivered in 30 min.`,
-        cta: "Shop Now",
-        imagePrompt: "Person with umbrella in city rain, warm tones, product placement",
+        headline: "Storm coming. You're covered.",
+        copy: `Severe weather hitting ${marketLabel}? Pre-order rain gear, batteries & pantry staples — delivered before the rush. Same-day slots still open.`,
+        cta: "Shop Storm Kit",
+        productOffer: "Weather Ready Bundle — free delivery over $35",
+        visualTreatment: "Hero: rain-streaked window with warm-lit product box on sill",
+        imagePrompt: "Cozy apartment window, rain outside, curated emergency kit on table",
       },
       {
         persona: "local_shopper",
-        headline: "Storm prep made easy",
-        copy: `${marketLabel} alert — ${summary}. Stock up before shelves empty.`,
+        headline: "Don't fight the forecast",
+        copy: `${marketLabel} under weather alert. Skip sold-out aisles — order flood prep, flashlights & water in one tap. Arrives in 2 hours.`,
         cta: "Get Prepared",
+        productOffer: "24hr Weather Prep — 15% off bundles",
+        visualTreatment: "Before/after: empty store shelf vs. full doorstep delivery",
         imagePrompt: "Household essentials on doorstep, stormy sky background",
       },
     ],
     traffic: [
       {
         persona: "traveler",
-        headline: "Stuck at the airport?",
-        copy: `${summary}. Pass the time with travel essentials — 2-hour terminal delivery in ${marketLabel}.`,
+        headline: `${delay} min delay? We come to you.`,
+        copy: `Stuck at ${airport}? Order chargers, snacks & comfort kits delivered to your terminal gate. Skip the concession line — live tracking included.`,
         cta: "Order to Gate",
-        imagePrompt: "Airport lounge, traveler with headphones and snacks",
+        productOffer: `Terminal Delivery at ${airport} — code DELAY20 for 20% off`,
+        visualTreatment: "Split: red delay board vs. calm traveler receiving bag at gate",
+        imagePrompt: "Traveler at airport gate receiving delivery bag, departure board blurred",
       },
       {
         persona: "commuter",
-        headline: "Delays happen. We don't.",
-        copy: `While others wait at ${marketLabel} airports: ${summary}. Get essentials delivered now.`,
+        headline: "ORD delays. Zero stress.",
+        copy: `Flight pushed ${delay} min at ${marketLabel}? Turn wait time into comfort — neck pillows, headphones & snacks sent to your terminal in 45 min.`,
         cta: "Skip the Wait",
-        imagePrompt: "Busy airport departure board, calm shopper on phone",
+        productOffer: "Airport Comfort Kit — $24.99, gate delivery",
+        visualTreatment: "UGC-style: phone order screen overlaid on busy terminal",
+        imagePrompt: "Busy airport departure board, calm shopper on phone ordering",
       },
     ],
     trends: [
       {
         persona: "local_shopper",
-        headline: "Trending near you",
-        copy: `${marketLabel} is searching: ${summary}. We've got it in stock — act before demand spikes.`,
+        headline: "Trending in your city",
+        copy: `${marketLabel} is searching hard for this right now. We stocked up early — grab it before the spike clears shelves.`,
         cta: "Shop Trending",
+        productOffer: "Trending Now — limited stock, free same-day",
+        visualTreatment: "Trend graph animation morphing into product hero shot",
         imagePrompt: "Trending product flat lay, social media aesthetic",
-      },
-      {
-        persona: "commuter",
-        headline: "What your city wants",
-        copy: `Search data shows rising demand in ${marketLabel}. ${summary}. Be first to respond.`,
-        cta: "View Trend",
-        imagePrompt: "Search trends graph overlay on city map",
       },
     ],
     reddit: [
       {
         persona: "traveler",
-        headline: "Reddit thread → ad response",
-        copy: redditCopy(signal),
-        cta: "See Solutions",
-        imagePrompt: "Reddit thread screenshot morphing into product ad card",
-      },
-      {
-        persona: "local_shopper",
-        headline: "Your city is talking",
-        copy: redditCopy(signal),
-        cta: "Shop the Moment",
-        imagePrompt: "Social conversation bubbles over city skyline with product",
+        headline: "Reddit asked. We answered.",
+        copy: `"${(signal.payload.topic as string)?.slice(0, 60) ?? "Local thread trending"}" — ${(signal.payload.snippet as string)?.slice(0, 80) ?? ""} Here's the product fix ${marketLabel} is talking about.`,
+        cta: "See the Fix",
+        productOffer: "Community Pick — based on local conversation",
+        visualTreatment: "Reddit post card transitions into polished product ad",
+        imagePrompt: "Social thread UI fading into clean product hero on mobile",
       },
     ],
     social: [
       {
         persona: "local_shopper",
         headline: "Your city is buzzing",
-        copy: `${marketLabel}: ${summary}. Tap into the moment with a locally relevant offer.`,
-        cta: "Explore",
+        copy: `${marketLabel} is talking — and we built an offer for exactly this moment. Tap in before the conversation moves on.`,
+        cta: "Shop the Moment",
+        productOffer: "Signal-Responsive Offer — live for 48hrs",
+        visualTreatment: "City skyline with floating social bubbles resolving to brand CTA",
         imagePrompt: "City skyline with social notification bubbles",
       },
     ],
@@ -150,13 +153,15 @@ export async function generateCreatives(
       messages: [
         {
           role: "system",
-          content: `You are a paid social creative director. Generate ad variants for Meta/Instagram.
+          content: `You are a senior paid social creative director at a DTC brand. Generate FINISHED ad units ready for Meta/Instagram — not briefs or ideas.
+
 Rules:
-- Tone: helpful, urgent but not alarmist
+- Write like a real ad: punchy headline, benefit-led body, specific product/offer
+- Include productOffer (specific deal/bundle) and visualTreatment (1-line art direction)
 - Headline max 40 chars, primary text max 125 chars
-- Reference the specific signal context and city
-- No guaranteed claims, no medical claims
-- Return JSON: { "variants": [{ "persona", "headline", "copy", "cta", "imagePrompt" }] }
+- Reference the signal naturally (weather delay, trend, Reddit thread) — don't describe the pipeline
+- No meta language like "triggered by" or "signal detected"
+- Return JSON: { "variants": [{ "persona", "headline", "copy", "cta", "imagePrompt", "productOffer", "visualTreatment" }] }
 - Generate 3 variants for personas: ${PERSONAS.join(", ")}`,
         },
         {
@@ -188,6 +193,8 @@ Generate 3 creative variants.`,
         copy: v.copy.slice(0, 200),
         cta: v.cta,
         imagePrompt: v.imagePrompt,
+        productOffer: v.productOffer,
+        visualTreatment: v.visualTreatment,
         signalContext: summary,
         signalSummary: summary,
         sourceUrl: signal.payload.sourceUrl as string | undefined,

@@ -77,6 +77,8 @@ export interface CreativeVariant {
   signalSummary?: string;
   sourceUrl?: string;
   sourceLabel?: string;
+  productOffer?: string;
+  visualTreatment?: string;
   attribution: string;
   complianceStatus: "pending" | "passed" | "blocked" | "fixed";
   createdAt: string;

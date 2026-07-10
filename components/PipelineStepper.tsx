@@ -22,7 +22,7 @@ const STAGE_HELP: Record<PipelineStage, string> = {
   detect: "A signal crossed a threshold (weather, traffic, trend, or Reddit thread).",
   generate: "AI writes ad variants tailored to the signal, city, and persona.",
   validate: "Rules engine checks copy length, blocked words, and attribution.",
-  launch: "Simulated deploy to Meta or Smartly (awaits approval if enabled).",
+  launch: "Simulated deploy to Meta or Smartly via adapter (demo = fake IDs, no spend).",
   optimize: "Mock metrics rank variants — pause losers, scale winners.",
 };
 
