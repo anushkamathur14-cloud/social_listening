@@ -1,5 +1,6 @@
 "use client";
 
+import { matchesSignalFilters, type SignalFeedFilters } from "@/lib/signal-filter";
 import { signalVerticalHint } from "@/lib/verticals";
 import type { AppEvent } from "@/lib/types";
 
@@ -42,16 +43,15 @@ const SEVERITY_COLORS: Record<string, string> = {
 
 interface SignalFeedProps {
   events: AppEvent[];
-  filterMarkets?: string[];
+  filters: SignalFeedFilters;
 }
 
-export function SignalFeed({ events, filterMarkets }: SignalFeedProps) {
+export function SignalFeed({ events, filters }: SignalFeedProps) {
   const signalEvents = events
     .filter((e) => e.type === "signal_detected")
     .filter((e) => {
-      if (!filterMarkets?.length) return true;
-      const market = (e.data.signal as { market: string }).market;
-      return filterMarkets.includes(market);
+      const signal = e.data.signal as { market: string; type: string };
+      return matchesSignalFilters(signal, filters);
     })
     .slice(-12)
     .reverse();
@@ -62,7 +62,8 @@ export function SignalFeed({ events, filterMarkets }: SignalFeedProps) {
         <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center">
           <p className="text-sm text-gray-600">Waiting for signals…</p>
           <p className="text-xs text-gray-500 mt-1">
-            Run a demo scenario or inject a signal for selected cities.
+            Adjust cities, city dropdown, or signal type above to filter what appears
+            here.
           </p>
         </div>
       )}

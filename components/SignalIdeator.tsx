@@ -6,10 +6,12 @@ import {
   isLlmConfigured,
   type IntegrationConfig,
 } from "@/lib/integrations";
+import { filterSignalEvents, type SignalFeedFilters } from "@/lib/signal-filter";
 import type { AppEvent, Channel } from "@/lib/types";
 
 interface SignalIdeatorProps {
   events: AppEvent[];
+  signalFilters: SignalFeedFilters;
   selectedChannels: Channel[];
   integrations: IntegrationConfig;
   onOpenIntegrations: () => void;
@@ -17,13 +19,13 @@ interface SignalIdeatorProps {
 
 export function SignalIdeator({
   events,
+  signalFilters,
   selectedChannels,
   integrations,
   onOpenIntegrations,
 }: SignalIdeatorProps) {
-  const latestSignal = [...events]
-    .reverse()
-    .find((e) => e.type === "signal_detected");
+  const latestSignal = [...filterSignalEvents(events, signalFilters)]
+    .reverse()[0];
 
   const signal = latestSignal?.data.signal as
     | {
@@ -79,8 +81,8 @@ export function SignalIdeator({
     return (
       <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
         <p className="text-xs text-gray-500">
-          Run a demo or inject a signal — then use AI to brainstorm angles before
-          creatives land.
+          No signals match your current city and type filters — adjust filters
+          above or inject a signal.
         </p>
       </div>
     );

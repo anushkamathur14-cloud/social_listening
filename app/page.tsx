@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChannelSelector } from "@/components/ChannelSelector";
 import { CreativeCustomizer } from "@/components/CreativeCustomizer";
 import { CreativeCard } from "@/components/CreativeCard";
@@ -11,6 +11,7 @@ import { IntegrationsPanel } from "@/components/IntegrationsPanel";
 import { MetricsPanel } from "@/components/MetricsPanel";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { SignalFeed } from "@/components/SignalFeed";
+import { SignalFilterBanner } from "@/components/SignalFilterBanner";
 import { SignalIdeator } from "@/components/SignalIdeator";
 import { StatsBar } from "@/components/StatsBar";
 import { ChannelFilterBanner } from "@/components/ChannelFilterBanner";
@@ -30,6 +31,11 @@ import {
 } from "@/lib/integrations";
 import { MARKETS } from "@/lib/markets";
 import { platform } from "@/lib/platform";
+import {
+  filterSignalEvents,
+  type FeedCityFilter,
+  type FeedSignalTypeFilter,
+} from "@/lib/signal-filter";
 import type { AppEvent, Channel, Market, SignalType } from "@/lib/types";
 
 const INJECTABLE_MARKETS = MARKETS.filter((m) => m.id !== "US");
@@ -41,12 +47,19 @@ const SIGNAL_TYPES: { id: SignalType; label: string; icon: string }[] = [
   { id: "reddit", label: "Community", icon: "💬" },
 ];
 
+const ALL_SIGNAL_TYPES: { id: FeedSignalTypeFilter; label: string; icon: string }[] = [
+  { id: "all", label: "All", icon: "◉" },
+  ...SIGNAL_TYPES,
+];
+
 type Tab = "how-it-works" | "overview" | "creatives" | "performance";
 
 export default function Dashboard() {
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [connected, setConnected] = useState(false);
   const [injectMarket, setInjectMarket] = useState<Market>("ORD");
+  const [feedCity, setFeedCity] = useState<FeedCityFilter>("all");
+  const [feedSignalType, setFeedSignalType] = useState<FeedSignalTypeFilter>("all");
   const [signalType, setSignalType] = useState<SignalType>("traffic");
   const [activeMarkets, setActiveMarkets] = useState<Market[]>([
     "NYC",
@@ -151,10 +164,47 @@ export default function Dashboard() {
         : [...activeMarkets, city];
       if (next.length === 0) return;
       setActiveMarkets(next);
+      if (feedCity !== "all" && !next.includes(feedCity)) {
+        setFeedCity("all");
+      }
+      if (!next.includes(injectMarket)) {
+        setInjectMarket(next[0]);
+      }
       await saveSettings({ activeMarkets: next });
     },
-    [activeMarkets, saveSettings]
+    [activeMarkets, feedCity, injectMarket, saveSettings]
   );
+
+  const signalFilters = useMemo(
+    () => ({
+      activeMarkets,
+      feedCity,
+      feedSignalType,
+    }),
+    [activeMarkets, feedCity, feedSignalType]
+  );
+
+  const filteredSignalCount = useMemo(
+    () => filterSignalEvents(events, signalFilters).length,
+    [events, signalFilters]
+  );
+
+  const onFeedCityChange = useCallback((value: string) => {
+    if (value === "all") {
+      setFeedCity("all");
+      return;
+    }
+    const market = value as Market;
+    setFeedCity(market);
+    setInjectMarket(market);
+  }, []);
+
+  const onSignalTypeFilter = useCallback((type: FeedSignalTypeFilter) => {
+    setFeedSignalType(type);
+    if (type !== "all") {
+      setSignalType(type);
+    }
+  }, []);
 
   const onChannelsChange = useCallback(
     async (channels: Channel[]) => {
@@ -201,7 +251,9 @@ export default function Dashboard() {
     async (scenario: DemoScenario) => {
       setActiveTab("overview");
       setSignalType(scenario.signalType);
+      setFeedSignalType(scenario.signalType);
       setInjectMarket(scenario.market);
+      setFeedCity(scenario.market);
       if (!activeMarkets.includes(scenario.market)) {
         const next = [...activeMarkets, scenario.market];
         setActiveMarkets(next);
@@ -236,12 +288,6 @@ export default function Dashboard() {
 
   const integrationBadgeCount =
     configuredCount + (isLlmConfigured(integrations) ? 1 : 0);
-
-  const filteredEvents = events.filter((e) => {
-    if (e.type !== "signal_detected") return true;
-    const market = (e.data.signal as { market: string }).market as Market;
-    return activeMarkets.includes(market);
-  });
 
   const pendingCount = countPendingForChannels(events, selectedChannels);
 
@@ -355,6 +401,7 @@ export default function Dashboard() {
                 events={events}
                 activeMarkets={activeMarkets}
                 selectedChannels={selectedChannels}
+                signalFilters={signalFilters}
               />
 
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
@@ -405,10 +452,14 @@ export default function Dashboard() {
                   </div>
 
                   <select
-                    value={injectMarket}
-                    onChange={(e) => setInjectMarket(e.target.value as Market)}
+                    value={feedCity}
+                    onChange={(e) => onFeedCityChange(e.target.value)}
                     className="rounded-lg bg-white border border-gray-200 text-xs px-3 py-1.5 text-gray-800"
+                    aria-label="Filter signals by city"
                   >
+                    <option value="all">
+                      All selected cities ({activeMarkets.length})
+                    </option>
                     {INJECTABLE_MARKETS.filter((m) =>
                       activeMarkets.includes(m.id)
                     ).map((m) => (
@@ -419,13 +470,13 @@ export default function Dashboard() {
                   </select>
 
                   <div className="flex flex-wrap gap-1">
-                    {SIGNAL_TYPES.map((t) => (
+                    {ALL_SIGNAL_TYPES.map((t) => (
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setSignalType(t.id)}
+                        onClick={() => onSignalTypeFilter(t.id)}
                         className={`rounded-lg text-xs px-2.5 py-1.5 border transition-colors ${
-                          signalType === t.id
+                          feedSignalType === t.id
                             ? "bg-black border-black text-white"
                             : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                         }`}
@@ -434,6 +485,23 @@ export default function Dashboard() {
                       </button>
                     ))}
                   </div>
+
+                  {feedCity === "all" && (
+                    <select
+                      value={injectMarket}
+                      onChange={(e) => setInjectMarket(e.target.value as Market)}
+                      className="rounded-lg bg-white border border-gray-200 text-xs px-3 py-1.5 text-gray-800"
+                      aria-label="Inject signal into city"
+                    >
+                      {INJECTABLE_MARKETS.filter((m) =>
+                        activeMarkets.includes(m.id)
+                      ).map((m) => (
+                        <option key={m.id} value={m.id}>
+                          Inject → {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
 
                   <button
                     type="button"
@@ -478,12 +546,17 @@ export default function Dashboard() {
                   Live Signal Feed
                 </h2>
                 <p className="text-[10px] text-gray-500 mb-3">
-                  Filtered to selected cities · UA vertical hint per signal
+                  Cities and signal types above filter what appears here
                 </p>
-                <SignalFeed events={filteredEvents} filterMarkets={activeMarkets} />
+                <SignalFilterBanner
+                  filters={signalFilters}
+                  signalCount={filteredSignalCount}
+                />
+                <SignalFeed events={events} filters={signalFilters} />
               </div>
               <SignalIdeator
                 events={events}
+                signalFilters={signalFilters}
                 selectedChannels={selectedChannels}
                 integrations={integrations}
                 onOpenIntegrations={() => setShowIntegrations(true)}
@@ -516,6 +589,7 @@ export default function Dashboard() {
             <ChannelFilterBanner selectedChannels={selectedChannels} />
             <CreativeCustomizer
               events={events}
+              signalFilters={signalFilters}
               selectedChannels={selectedChannels}
               integrations={integrations}
               onOpenIntegrations={() => setShowIntegrations(true)}

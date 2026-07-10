@@ -6,10 +6,12 @@ import {
   loadIntegrations,
   type IntegrationConfig,
 } from "@/lib/integrations";
+import { filterSignalEvents, type SignalFeedFilters } from "@/lib/signal-filter";
 import type { AppEvent, Channel } from "@/lib/types";
 
 interface CreativeCustomizerProps {
   events: AppEvent[];
+  signalFilters: SignalFeedFilters;
   selectedChannels: Channel[];
   integrations: IntegrationConfig;
   onOpenIntegrations: () => void;
@@ -17,13 +19,13 @@ interface CreativeCustomizerProps {
 
 export function CreativeCustomizer({
   events,
+  signalFilters,
   selectedChannels,
   integrations,
   onOpenIntegrations,
 }: CreativeCustomizerProps) {
-  const latestSignal = [...events]
-    .reverse()
-    .find((e) => e.type === "signal_detected");
+  const latestSignal = [...filterSignalEvents(events, signalFilters)]
+    .reverse()[0];
 
   const signal = latestSignal?.data.signal as
     | {
@@ -82,8 +84,8 @@ export function CreativeCustomizer({
     return (
       <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/30 p-5 text-center">
         <p className="text-sm text-gray-600">
-          Run a demo or inject a signal first — then customize creatives with your
-          LLM key.
+          No signals match your current filters — adjust city or signal type above,
+          or inject a signal first.
         </p>
       </div>
     );

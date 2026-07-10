@@ -5,16 +5,23 @@ import {
   countPendingForChannels,
   countRoutedForChannels,
 } from "@/lib/channel-filter";
+import { filterSignalEvents, type SignalFeedFilters } from "@/lib/signal-filter";
 import type { AppEvent, Channel } from "@/lib/types";
 
 interface StatsBarProps {
   events: AppEvent[];
   activeMarkets: string[];
   selectedChannels: Channel[];
+  signalFilters: SignalFeedFilters;
 }
 
-export function StatsBar({ events, activeMarkets, selectedChannels }: StatsBarProps) {
-  const signals = events.filter((e) => e.type === "signal_detected").length;
+export function StatsBar({
+  events,
+  activeMarkets,
+  selectedChannels,
+  signalFilters,
+}: StatsBarProps) {
+  const signals = filterSignalEvents(events, signalFilters).length;
   const creatives = countCreativesForChannels(events, selectedChannels);
   const pending = countPendingForChannels(events, selectedChannels);
   const routed = countRoutedForChannels(events, selectedChannels);
