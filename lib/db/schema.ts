@@ -34,6 +34,7 @@ export const creatives = sqliteTable("creatives", {
   channel: text("channel"),
   imageUrl: text("image_url"),
   description: text("description"),
+  channelPayload: text("channel_payload"),
 });
 
 export const campaigns = sqliteTable("campaigns", {

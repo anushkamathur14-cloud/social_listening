@@ -34,8 +34,7 @@ export const triggerRules: TriggerRule[] = [
   },
   {
     type: "trends",
-    market: "US",
-    description: "spike_ratio > 2.0",
+    description: "spike_ratio > 2.0 in any market",
     evaluate: (s) =>
       s.type === "trends" && ((s.payload.spikeRatio as number) ?? 0) > 2.0,
   },

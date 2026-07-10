@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
+  --background: #ffffff;
+  --foreground: #000000;
+  --surface: #fafafa;
+  --border: #e5e5e5;
+  --muted: #6b7280;
+  --uber-green: #06c167;
+  --uber-green-dark: #049653;
 }
 
 @theme inline {
@@ -23,12 +28,43 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-  border-radius: 2px;
+  background: #d4d4d4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}
+
+details summary::-webkit-details-marker {
+  display: none;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out;
+}
+
+.uber-btn-primary {
+  background: var(--uber-green);
+  color: white;
+}
+.uber-btn-primary:hover {
+  background: var(--uber-green-dark);
 }

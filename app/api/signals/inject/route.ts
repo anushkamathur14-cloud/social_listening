@@ -14,7 +14,9 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    triggered: !!trigger,
-    trigger,
+    triggered: !!trigger?.trigger,
+    trigger: trigger?.trigger ?? null,
+    signalId: trigger?.signalId ?? null,
+    pipelineStarted: trigger?.pipelineStarted ?? false,
   });
 }

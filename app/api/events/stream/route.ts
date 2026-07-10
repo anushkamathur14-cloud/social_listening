@@ -19,7 +19,7 @@ export async function GET() {
 
       send({ type: "connected", timestamp: new Date().toISOString() });
 
-      for (const event of broadcaster.getHistory(30)) {
+      for (const event of broadcaster.getHistory(100)) {
         send(event);
       }
 

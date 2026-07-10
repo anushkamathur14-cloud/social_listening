@@ -39,6 +39,8 @@ export async function optimizeCampaigns(): Promise<{
   const snapshots: PerformanceSnapshot[] = [];
   const actions: Array<{ campaignId: string; action: string }> = [];
 
+  const campaignById = new Map<string, Campaign>();
+
   for (const row of activeCampaigns) {
     const campaign: Campaign = {
       id: row.id,
@@ -53,6 +55,7 @@ export async function optimizeCampaigns(): Promise<{
       market: row.market as Market,
       launchedAt: row.launchedAt ?? undefined,
     };
+    campaignById.set(campaign.id, campaign);
     const snapshot = generateMetrics(campaign);
     snapshots.push(snapshot);
 
@@ -69,6 +72,9 @@ export async function optimizeCampaigns(): Promise<{
 
     broadcaster.emitEvent("performance_update", {
       campaignId: campaign.id,
+      creativeId: campaign.creativeId,
+      channel: campaign.channel,
+      market: campaign.market,
       snapshot,
     });
   }
@@ -78,6 +84,7 @@ export async function optimizeCampaigns(): Promise<{
 
   for (let i = ranked.length - pauseCount; i < ranked.length; i++) {
     const snap = ranked[i];
+    const camp = campaignById.get(snap.campaignId);
     await db
       .update(campaigns)
       .set({ status: "paused" })
@@ -88,11 +95,14 @@ export async function optimizeCampaigns(): Promise<{
       action: "paused",
       reason: "Bottom 30% CTR",
       ctr: snap.ctr,
+      channel: camp?.channel,
+      market: camp?.market,
     });
   }
 
   if (ranked.length > 0) {
     const winner = ranked[0];
+    const winnerCamp = campaignById.get(winner.campaignId);
     await db
       .update(campaigns)
       .set({ status: "scaled" })
@@ -103,6 +113,8 @@ export async function optimizeCampaigns(): Promise<{
       action: "scaled",
       reason: "Top CTR performer",
       ctr: winner.ctr,
+      channel: winnerCamp?.channel,
+      market: winnerCamp?.market,
     });
   }
 

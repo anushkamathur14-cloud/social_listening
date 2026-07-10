@@ -1,213 +1,218 @@
 "use client";
 
-import Image from "next/image";
-import { brand } from "@/lib/brand";
+import { useMemo, useState } from "react";
+import { AdPreview, type AdCreative } from "@/components/AdPreview";
+import { CreativeComparison } from "@/components/CreativeComparison";
+import { routeStatusLabel } from "@/components/IntegrationsCallout";
+import { ChannelCreativeFields } from "@/components/ChannelCreativeFields";
+import { PayloadPreview } from "@/components/PayloadPreview";
 import { CHANNEL_MAP } from "@/lib/channels";
-import type { AppEvent, Channel } from "@/lib/types";
+import {
+  hasLiveCredentials,
+  type IntegrationConfig,
+} from "@/lib/integrations";
+import { VERTICAL_META, verticalFromPersona } from "@/lib/verticals";
+import type { AppEvent, Channel, ChannelPayload } from "@/lib/types";
 
 const STATUS_STYLES: Record<string, string> = {
-  passed: "bg-green-500/20 text-green-400 border-green-500/30",
-  fixed: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  blocked: "bg-red-500/20 text-red-400 border-red-500/30",
-  pending: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-  pending_review: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  approved: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  published: "bg-green-500/20 text-green-400 border-green-500/30",
+  pending_review: "bg-amber-50 text-amber-700 border-amber-200",
+  published: "bg-green-50 text-green-700 border-green-200",
+  blocked: "bg-red-50 text-red-700 border-red-200",
 };
 
 interface CreativeCardProps {
   events: AppEvent[];
   onPublish?: (creativeId: string) => void;
+  integrations: IntegrationConfig;
+  selectedChannels: Channel[];
 }
 
-export function CreativeCard({ events, onPublish }: CreativeCardProps) {
-  const creatives = events
-    .filter((e) => e.type === "creative_generated")
-    .slice(-12)
-    .reverse();
+type ViewMode = "compare" | "grid";
 
-  const publishedIds = new Set<string>();
-  for (const e of events.filter((ev) => ev.type === "campaign_published")) {
-    const c = e.data.creative as { id: string };
-    if (c?.id) publishedIds.add(c.id);
-  }
+export function CreativeCard({
+  events,
+  onPublish,
+  integrations,
+  selectedChannels,
+}: CreativeCardProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>("compare");
+  const [mobilePreview, setMobilePreview] = useState(true);
 
-  const publishInfo = new Map<
-    string,
-    { adapter: string; platformId: string; message: string }
-  >();
-  for (const e of events.filter((ev) => ev.type === "campaign_published")) {
-    const creative = e.data.creative as { id: string };
-    const campaign = e.data.campaign as { platformId: string };
-    publishInfo.set(creative.id, {
-      adapter: e.data.publishAdapter as string,
-      platformId: campaign.platformId,
-      message: e.data.message as string,
-    });
-  }
+  const gridItems = useMemo(
+    () => buildGridItems(events, selectedChannels),
+    [events, selectedChannels]
+  );
 
-  const complianceMap = new Map<
-    string,
-    { status: string; violations: string[]; autoFixes?: string[] }
-  >();
-  for (const e of events.filter((ev) => ev.type === "compliance_result")) {
-    complianceMap.set(e.data.creativeId as string, {
-      status: e.data.status as string,
-      violations: (e.data.violations as string[]) ?? [],
-      autoFixes: (e.data.autoFixes as string[]) ?? [],
-    });
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
+          <button
+            type="button"
+            onClick={() => setViewMode("compare")}
+            className={`px-3 py-1.5 font-medium transition-colors ${
+              viewMode === "compare"
+                ? "bg-black text-white"
+                : "bg-white text-[var(--muted)] hover:bg-zinc-50"
+            }`}
+          >
+            Compare channels
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            className={`px-3 py-1.5 font-medium transition-colors border-l border-[var(--border)] ${
+              viewMode === "grid"
+                ? "bg-black text-white"
+                : "bg-white text-[var(--muted)] hover:bg-zinc-50"
+            }`}
+          >
+            Grid view
+          </button>
+        </div>
+
+        <label className="flex items-center gap-2 text-xs text-[var(--muted)] cursor-pointer ml-auto">
+          <input
+            type="checkbox"
+            checked={mobilePreview}
+            onChange={(e) => setMobilePreview(e.target.checked)}
+            className="rounded accent-black"
+          />
+          Mobile preview (Meta / Smartly)
+        </label>
+      </div>
+
+      {viewMode === "compare" ? (
+        <CreativeComparison
+          events={events}
+          onPublish={onPublish}
+          integrations={integrations}
+          mobilePreview={mobilePreview}
+          selectedChannels={selectedChannels}
+        />
+      ) : (
+        <CreativeGrid
+          items={gridItems}
+          onPublish={onPublish}
+          integrations={integrations}
+          mobilePreview={mobilePreview}
+        />
+      )}
+    </div>
+  );
+}
+
+interface GridItem extends AdCreative {
+  status: string;
+  specLabel?: string;
+  channelPayload?: ChannelPayload;
+  signalSummary?: string;
+  signalContext?: string;
+  sourceUrl?: string;
+  sourceLabel?: string;
+  visualTreatment?: string;
+  publishPayload?: unknown;
+  publishAdapter?: string;
+  platformId?: string;
+  simulated?: boolean;
+}
+
+function CreativeGrid({
+  items,
+  onPublish,
+  integrations,
+  mobilePreview,
+}: {
+  items: GridItem[];
+  onPublish?: (id: string) => void;
+  integrations: IntegrationConfig;
+  mobilePreview: boolean;
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-[var(--border)] p-10 text-center">
+        <p className="text-sm text-[var(--muted)]">No creatives yet</p>
+      </div>
+    );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 overflow-y-auto max-h-[620px] pr-1">
-      {creatives.length === 0 && (
-        <p className="text-sm text-zinc-500 italic col-span-full">
-          Select channels, inject a signal — creatives will appear here for your review before publishing.
-        </p>
-      )}
-      {creatives.map((event) => {
-        const creative = event.data.creative as {
-          id: string;
-          channel: Channel;
-          persona: string;
-          market: string;
-          headline: string;
-          copy: string;
-          description?: string;
-          cta: string;
-          attribution: string;
-          complianceStatus: string;
-          signalContext?: string;
-          signalSummary?: string;
-          sourceUrl?: string;
-          sourceLabel?: string;
-          imageUrl?: string;
-          productOffer?: string;
-          specLabel?: string;
-        };
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 overflow-y-auto max-h-[720px] pr-1">
+      {items.map((creative) => {
+        const spec = CHANNEL_MAP[creative.channel];
+        const vertical = verticalFromPersona(
+          creative.persona,
+          creative.productOffer
+        );
+        const vMeta = VERTICAL_META[vertical];
+        const liveReady = hasLiveCredentials(integrations, creative.channel);
 
-        const compliance = complianceMap.get(creative.id);
-        const isPublished = publishedIds.has(creative.id);
-        const status = isPublished
-          ? "published"
-          : (compliance?.status ?? creative.complianceStatus ?? "pending_review");
-        const channelSpec = CHANNEL_MAP[creative.channel];
-        const pub = publishInfo.get(creative.id);
-        const isTextAd = channelSpec?.format === "text";
+        const isSearch = creative.channel === "google_search";
 
         return (
-          <div key={`${event.id}-${creative.id}`} className="flex flex-col gap-2">
-            <div className="rounded-xl border border-zinc-700 bg-white text-zinc-900 overflow-hidden shadow-lg">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-200 bg-zinc-50">
-                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white text-sm font-bold">
-                  {brand.initials}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold truncate">{brand.name}</p>
-                  <p className="text-[10px] text-zinc-500">
-                    {channelSpec?.label} · {creative.market}
-                  </p>
-                </div>
-                <span className="text-[10px] text-zinc-400 uppercase">
-                  {creative.channel}
-                </span>
-              </div>
+          <div
+            key={creative.id}
+            className={`flex flex-col gap-2 ${isSearch ? "md:col-span-2 xl:col-span-3" : ""}`}
+          >
+            <AdPreview
+              creative={creative}
+              mobileFrame={
+                mobilePreview &&
+                (creative.channel === "meta" || creative.channel === "smartly")
+              }
+            />
 
-              {!isTextAd && creative.imageUrl && (
-                <div className="relative aspect-[1.91/1] bg-zinc-100">
-                  <Image
-                    src={creative.imageUrl}
-                    alt={creative.headline}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                </div>
-              )}
-
-              {isTextAd && (
-                <div className="px-3 py-2 bg-blue-50 border-b border-blue-100 text-[10px] text-blue-700">
-                  Google Search text ad · no image
-                </div>
-              )}
-
-              <div className="px-3 py-3 space-y-1">
-                <p className="text-[10px] text-green-700 font-medium">
-                  Ad · {creative.attribution.replace(/^https?:\/\//, "")}
-                </p>
-                <h3 className="font-bold text-sm text-blue-800 leading-tight">
-                  {creative.headline}
-                </h3>
-                <p className="text-xs text-zinc-700 leading-relaxed">
-                  {creative.copy}
-                </p>
-                {creative.description && isTextAd && (
-                  <p className="text-xs text-zinc-500">{creative.description}</p>
-                )}
-                {creative.productOffer && (
-                  <p className="text-[11px] font-medium text-indigo-600">
-                    {creative.productOffer}
-                  </p>
-                )}
-                <button className="w-full mt-1 rounded-md bg-black hover:bg-zinc-800 text-white text-xs py-2 font-semibold">
-                  {creative.cta}
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3 space-y-2 text-xs">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 space-y-2 text-xs">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-indigo-500/20 text-indigo-300 px-2 py-0.5">
-                  {creative.persona}
+                <span
+                  className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${vMeta.bg} ${vMeta.color}`}
+                >
+                  {vMeta.label}
+                </span>
+                <span className="rounded-full bg-zinc-100 text-zinc-600 px-2 py-0.5 capitalize">
+                  {creative.persona.replace("_", " ")}
                 </span>
                 <span
-                  className={`rounded px-2 py-0.5 border ${STATUS_STYLES[status] ?? STATUS_STYLES.pending_review}`}
+                  className={`rounded px-2 py-0.5 border capitalize ${STATUS_STYLES[creative.status] ?? STATUS_STYLES.pending_review}`}
                 >
-                  {status.replace("_", " ")}
+                  {routeStatusLabel(creative.status, creative.simulated)}
                 </span>
-                {creative.specLabel && (
-                  <span className="text-zinc-600 text-[10px]">{creative.specLabel}</span>
-                )}
               </div>
 
-              <details className="group">
-                <summary className="cursor-pointer text-zinc-400 hover:text-zinc-300 list-none flex items-center gap-1">
-                  <span className="group-open:rotate-90 transition-transform">▶</span>
-                  Signal source
-                </summary>
-                <div className="mt-2 pl-3 border-l border-zinc-700 space-y-1 text-zinc-500">
-                  <p>{creative.signalSummary ?? creative.signalContext}</p>
-                  {creative.sourceUrl && (
-                    <a
-                      href={creative.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-cyan-400 hover:text-cyan-300 block"
-                    >
-                      ↗ {creative.sourceLabel ?? "Verify source"}
-                    </a>
-                  )}
-                </div>
-              </details>
+              {creative.specLabel && (
+                <p className="text-[10px] text-[var(--muted)]">{creative.specLabel}</p>
+              )}
 
-              {status === "pending_review" && onPublish && (
+              <ChannelCreativeFields
+                channel={creative.channel}
+                headline={creative.headline}
+                copy={creative.copy}
+                description={creative.description}
+                cta={creative.cta}
+                channelPayload={creative.channelPayload}
+              />
+
+              <PayloadPreview
+                creativeId={creative.id}
+                cached={creative.publishPayload}
+                liveReady={liveReady}
+              />
+
+              {creative.status === "pending_review" && onPublish && (
                 <button
+                  type="button"
                   onClick={() => onPublish(creative.id)}
-                  className="w-full rounded-md bg-green-600 hover:bg-green-500 text-white py-2 font-medium"
+                  className="w-full rounded-lg bg-[var(--uber-green)] hover:bg-[var(--uber-green-dark)] text-white py-2 font-semibold"
                 >
-                  Approve & Publish → {channelSpec?.publishLabel}
+                  Approve & Route → {spec.publishLabel}
                 </button>
               )}
 
-              {pub && (
-                <div className="pt-2 border-t border-zinc-800 text-zinc-400 space-y-1">
-                  <p>
-                    <span className="text-amber-400/90">Simulated publish</span> via{" "}
-                    {pub.adapter}
-                  </p>
-                  <code className="text-[10px] text-zinc-600 block">{pub.platformId}</code>
-                  <p className="text-[10px] text-zinc-600">{pub.message}</p>
-                </div>
+              {creative.status === "published" && (
+                <p className="text-[10px] text-gray-600">
+                  {creative.simulated === false ? "Live-ready route" : "Simulated route"} via{" "}
+                  {creative.publishAdapter}
+                </p>
               )}
             </div>
           </div>
@@ -215,4 +220,55 @@ export function CreativeCard({ events, onPublish }: CreativeCardProps) {
       })}
     </div>
   );
+}
+
+function buildGridItems(events: AppEvent[], selectedChannels: Channel[]): GridItem[] {
+  const allowed = new Set(selectedChannels);
+  const creativeEvents = events
+    .filter((e) => e.type === "creative_generated")
+    .filter((e) =>
+      allowed.has((e.data.creative as { channel: Channel }).channel)
+    )
+    .slice(-12)
+    .reverse();
+
+  const publishedIds = new Set<string>();
+  const publishMeta = new Map<
+    string,
+    { adapter: string; platformId: string; payload?: unknown; simulated?: boolean }
+  >();
+  for (const e of events.filter((ev) => ev.type === "campaign_published")) {
+    const c = e.data.creative as { id: string };
+    const campaign = e.data.campaign as { platformId: string };
+    if (c?.id) {
+      publishedIds.add(c.id);
+      publishMeta.set(c.id, {
+        adapter: e.data.publishAdapter as string,
+        platformId: campaign.platformId,
+        payload: e.data.publishPayload,
+        simulated: e.data.simulated as boolean | undefined,
+      });
+    }
+  }
+
+  const complianceMap = new Map<string, string>();
+  for (const e of events.filter((ev) => ev.type === "compliance_result")) {
+    complianceMap.set(e.data.creativeId as string, e.data.status as string);
+  }
+
+  return creativeEvents.map((event) => {
+    const c = event.data.creative as GridItem & { complianceStatus: string };
+    const pub = publishMeta.get(c.id);
+    const isPublished = publishedIds.has(c.id);
+    return {
+      ...c,
+      status: isPublished
+        ? "published"
+        : (complianceMap.get(c.id) ?? c.complianceStatus ?? "pending_review"),
+      publishPayload: pub?.payload,
+      publishAdapter: pub?.adapter,
+      platformId: pub?.platformId,
+      simulated: pub?.simulated,
+    };
+  });
 }

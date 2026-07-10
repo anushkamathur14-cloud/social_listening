@@ -17,25 +17,36 @@ export interface MetaDeployPayload {
     link_data: {
       message: string;
       name: string;
+      description?: string;
       call_to_action: { type: string; value: { link: string } };
     };
   };
   targeting: Record<string, unknown>;
   dailyBudget: number;
+  creativeNotes?: string[];
 }
 
 export function toMetaPayload(
   creative: CreativeVariant,
   budget: number
 ): MetaDeployPayload {
+  const ctaType =
+    creative.cta.toLowerCase().includes("order") ||
+    creative.cta.toLowerCase().includes("shop")
+      ? "SHOP_NOW"
+      : creative.cta.toLowerCase().includes("book")
+        ? "BOOK_TRAVEL"
+        : "LEARN_MORE";
+
   return {
     name: `signal-${creative.market}-${creative.persona}-${Date.now()}`,
     objectStorySpec: {
       link_data: {
         message: creative.copy,
         name: creative.headline,
+        description: creative.description,
         call_to_action: {
-          type: "SHOP_NOW",
+          type: ctaType,
           value: { link: creative.attribution },
         },
       },
@@ -45,6 +56,10 @@ export function toMetaPayload(
       flexible_spec: [{ interests: [{ name: creative.persona }] }],
     },
     dailyBudget: budget * 100,
+    creativeNotes:
+      creative.channelPayload?.kind === "meta"
+        ? creative.channelPayload.creativeNotes
+        : undefined,
   };
 }
 

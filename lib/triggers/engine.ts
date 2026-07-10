@@ -40,8 +40,11 @@ export async function persistSignal(signal: Signal): Promise<void> {
   });
 }
 
-export function evaluateSignal(signal: Signal): Trigger | null {
-  if (isDebounced(signal.type, signal.market)) {
+export function evaluateSignal(
+  signal: Signal,
+  options?: { skipDebounce?: boolean }
+): Trigger | null {
+  if (!options?.skipDebounce && isDebounced(signal.type, signal.market)) {
     return null;
   }
 

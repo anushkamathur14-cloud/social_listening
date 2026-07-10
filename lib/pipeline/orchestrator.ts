@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { config, parseActiveMarkets, parseChannels } from "../config";
 import { DEFAULT_ACTIVE_MARKETS } from "../markets";
 import { DEFAULT_CHANNELS } from "../channels";
+import { parseChannelPayload } from "../creative/channel-payload";
 import { generateCreatives } from "../creative/generator";
 import { applyComplianceFixes, validateCreative } from "../compliance/rules";
 import { db, initDb } from "../db/client";
@@ -114,8 +115,12 @@ async function emitStage(
   });
 }
 
-export async function runPipeline(triggerId: string, signalId: string) {
-  if (pipelinePaused) return;
+export async function runPipeline(
+  triggerId: string,
+  signalId: string,
+  options?: { force?: boolean }
+) {
+  if (pipelinePaused && !options?.force) return;
 
   const runId = nanoid();
   const timings: Partial<Record<PipelineStage, number>> = {};
@@ -213,6 +218,9 @@ export async function runPipeline(triggerId: string, signalId: string) {
       channel: creative.channel,
       imageUrl: creative.imageUrl ?? null,
       description: creative.description ?? null,
+      channelPayload: creative.channelPayload
+        ? JSON.stringify(creative.channelPayload)
+        : null,
     });
   }
 
@@ -245,6 +253,33 @@ export async function processSignal(signal: Signal) {
   await persistTrigger(trigger);
   await runPipeline(trigger.id, signal.id);
   return trigger;
+}
+
+async function processInjectedSignal(signal: Signal, channels?: Channel[]) {
+  if (channels?.length) {
+    selectedChannels = channels;
+    await saveSetting("selectedChannels", JSON.stringify(channels));
+  }
+
+  if (!signalInActiveMarkets(signal)) {
+    const next = [...new Set([...activeMarkets, signal.market])];
+    await setActiveMarkets(next);
+  }
+
+  await persistSignal(signal);
+
+  const trigger = {
+    id: nanoid(),
+    signalId: signal.id,
+    type: signal.type,
+    market: signal.market,
+    rule: "demo_inject: always fire (bypass debounce & rules)",
+    firedAt: new Date().toISOString(),
+  };
+
+  await persistTrigger(trigger);
+  await runPipeline(trigger.id, signal.id, { force: true });
+  return { trigger, signalId: signal.id, pipelineStarted: true };
 }
 
 export async function pollAllSignals() {
@@ -291,11 +326,6 @@ export async function injectSignal(
   market: Market,
   channels?: Channel[]
 ) {
-  if (channels?.length) {
-    selectedChannels = channels;
-    await saveSetting("selectedChannels", JSON.stringify(channels));
-  }
-
   const { createWeatherSignal } = await import("../signals/weather");
   const { createTrafficSignal } = await import("../signals/traffic");
   const { createTrendSignal } = await import("../signals/trends");
@@ -310,10 +340,13 @@ export async function injectSignal(
   };
 
   const signal = creators[type](market);
-  return processSignal(signal);
+  return processInjectedSignal(signal, channels);
 }
 
-export async function publishCreativeById(creativeId: string) {
+export async function publishCreativeById(
+  creativeId: string,
+  options?: { integrations?: import("../integrations").IntegrationConfig }
+) {
   const rows = await db
     .select()
     .from(creatives)
@@ -338,9 +371,10 @@ export async function publishCreativeById(creativeId: string) {
     attribution: row.attribution,
     complianceStatus: row.complianceStatus as "pending_review",
     createdAt: row.createdAt,
+    channelPayload: parseChannelPayload(row.channelPayload),
   };
 
-  const published = await publishToChannel(creative);
+  const published = await publishToChannel(creative, 75, options);
 
   await db.insert(campaigns).values({
     id: published.id,
@@ -367,11 +401,17 @@ export async function publishCreativeById(creativeId: string) {
     creative,
     publishAdapter: published.publishAdapter,
     publishPayload: published.publishPayload,
-    simulated: true,
-    message: `Routed to ${published.publishAdapter} (simulated — no real spend)`,
+    simulated: published.simulated,
+    message: published.simulated
+      ? `Simulated route to ${published.publishAdapter} — no ad spend. Add API keys in Integrations to go live-ready.`
+      : `Routed with your credentials via ${published.publishAdapter}`,
   });
 
   broadcaster.emitEvent("campaign_launched", { campaign: published, creative });
+
+  setTimeout(() => {
+    optimizeCampaigns().catch(console.error);
+  }, 2500);
 
   return published;
 }

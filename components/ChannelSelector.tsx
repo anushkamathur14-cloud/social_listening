@@ -2,6 +2,13 @@
 
 import { CHANNELS, type Channel } from "@/lib/channels";
 
+const CHANNEL_ICONS: Record<Channel, string> = {
+  meta: "◉",
+  display: "▭",
+  google_search: "T",
+  smartly: "⚡",
+};
+
 interface ChannelSelectorProps {
   selected: Channel[];
   onChange: (channels: Channel[]) => void;
@@ -26,15 +33,18 @@ export function ChannelSelector({ selected, onChange }: ChannelSelectorProps) {
             type="button"
             onClick={() => toggle(ch.id)}
             title={`${ch.format === "image" ? "Image" : "Text"} · ${ch.publishLabel}`}
-            className={`rounded-md border text-[10px] px-2 py-1 transition-colors ${
+            className={`rounded-lg border text-[10px] px-2.5 py-1.5 transition-all ${
               active
-                ? "bg-indigo-600/30 border-indigo-500 text-indigo-200"
-                : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                ? "bg-black border-black text-white shadow-sm"
+                : "bg-white border-[var(--border)] text-[var(--muted)] hover:bg-zinc-50"
             }`}
           >
+            <span className="mr-1 opacity-70">{CHANNEL_ICONS[ch.id]}</span>
             {ch.label.split("(")[0].trim()}
-            <span className="ml-1 opacity-60">
-              {ch.format === "image" ? "📷" : "T"}
+            <span className="ml-1.5 opacity-50 text-[9px]">
+              {ch.format === "image"
+                ? `${ch.imageWidth}×${ch.imageHeight}`
+                : "text"}
             </span>
           </button>
         );

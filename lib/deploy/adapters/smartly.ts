@@ -38,6 +38,7 @@ export function toSmartlyPayload(
       headline: creative.headline,
       primaryText: creative.copy,
       cta: creative.cta,
+      imageUrl: creative.imageUrl,
       market: creative.market,
       persona: creative.persona,
     },

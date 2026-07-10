@@ -17,7 +17,7 @@ export const brand = {
     airportPickup: "Airport pickup — 15% off first trip to terminal",
     stormSafety: "Storm alert — ride with Uber, skip the drive",
     trendFood: "Trending restaurants on Uber Eats — new user promo",
-    redditLocal: "Your city is talking — first trip offer inside",
+    redditLocal: "New users — see current promo in app. Terms apply.",
   },
   promoDisclaimer: "Promo for new users only. Terms apply. Availability varies by city.",
 };

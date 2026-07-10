@@ -32,5 +32,20 @@ function inferSentiment(text: string): "positive" | "neutral" | "negative" {
 }
 
 export function socialToSignalContext(social: SocialSignal): string {
+  const city = social.market;
+  if (social.platform === "reddit") {
+    return `People in ${city} are talking about ${summarizeTopic(social.topic)} — "${social.snippet.slice(0, 100)}${social.snippet.length > 100 ? "…" : ""}"`;
+  }
   return `[${social.platform}] ${social.topic}: "${social.snippet}" (${social.engagementScore} engagement, ${social.velocity}x velocity)`;
+}
+
+function summarizeTopic(topic: string): string {
+  const lower = topic.toLowerCase();
+  if (lower.includes("eats") || lower.includes("food") || lower.includes("delivery"))
+    return "food delivery";
+  if (lower.includes("airport") || lower.includes("flight") || lower.includes("travel"))
+    return "travel & airport rides";
+  if (lower.includes("storm") || lower.includes("rain") || lower.includes("commute"))
+    return "getting around in bad weather";
+  return "local mobility";
 }

@@ -22,7 +22,7 @@ const STAGE_HELP: Record<PipelineStage, string> = {
   detect: "A signal crossed a threshold (weather, traffic, trend, or Reddit thread).",
   generate: "AI writes ad variants tailored to the signal, city, and persona.",
   validate: "Rules engine checks copy length, blocked words, and attribution.",
-  launch: "Awaiting your approval — publish routes to the channel adapter (Smartly, Meta, Google, DV360).",
+  launch: "You approve — then the demo routes the payload to Meta, Google, Smartly, or DV360 (simulated unless you add API keys).",
   optimize: "Mock metrics rank variants — pause losers, scale winners.",
 };
 
@@ -52,27 +52,25 @@ export function PipelineStepper({ events }: PipelineStepperProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-cyan-900/40 bg-cyan-950/20 p-3 text-xs text-zinc-300">
-        <p className="font-medium text-cyan-300 mb-1">How the pipeline works</p>
+      <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-xs text-zinc-700">
+        <p className="font-medium text-[var(--uber-green-dark)] mb-1">
+          How the pipeline works
+        </p>
         <p className="leading-relaxed">
           1. <strong>Crawl</strong> sources for selected cities → 2.{" "}
-          <strong>Generate</strong> channel-specific creatives (image or text) → 3.{" "}
-          <strong>Validate</strong> compliance → 4.{" "}
-          <strong>You approve</strong> → 5.{" "}
-          <strong>Publish</strong> via Smartly / Meta / Google Ads (simulated in demo).
+          <strong>Generate</strong> channel-specific creatives → 3.{" "}
+          <strong>Validate</strong> compliance → 4.           <strong>You approve</strong> → 5.{" "}
+          <strong>Route</strong> to your ad APIs (simulated by default — add keys in Integrations).
         </p>
         {latestTrigger && (
-          <p className="mt-2 text-zinc-400">
-            Last trigger: <span className="text-white">{latestTrigger.type}</span> in{" "}
-            <span className="text-white">{latestTrigger.market}</span> — rule:{" "}
-            {latestTrigger.rule}
+          <p className="mt-2 text-[var(--muted)]">
+            Last trigger: <strong>{latestTrigger.type}</strong> in{" "}
+            <strong>{latestTrigger.market}</strong> — {latestTrigger.rule}
           </p>
         )}
-        {latestMessage && (
-          <p className="mt-1 text-zinc-400">{latestMessage}</p>
-        )}
+        {latestMessage && <p className="mt-1 text-[var(--muted)]">{latestMessage}</p>}
         {latestSignal?.sourceLabel && (
-          <p className="mt-1 text-zinc-500">Source: {latestSignal.sourceLabel}</p>
+          <p className="mt-1 text-zinc-400">Source: {latestSignal.sourceLabel}</p>
         )}
       </div>
 
@@ -87,54 +85,55 @@ export function PipelineStepper({ events }: PipelineStepperProps) {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
                   isActive
-                    ? "border-cyan-400 bg-cyan-400/20 text-cyan-300 animate-pulse"
+                    ? "border-black bg-zinc-100 text-black animate-pulse"
                     : isDone
-                      ? "border-green-500 bg-green-500/20 text-green-400"
-                      : "border-zinc-700 bg-zinc-800 text-zinc-500"
+                      ? "border-[var(--uber-green)] bg-green-50 text-[var(--uber-green-dark)]"
+                      : "border-[var(--border)] bg-white text-[var(--muted)]"
                 }`}
               >
                 {i + 1}
               </div>
               <span
-                className={`text-xs mt-1 text-center ${isActive ? "text-cyan-300" : isDone ? "text-green-400" : "text-zinc-500"}`}
+                className={`text-xs mt-1 text-center ${
+                  isActive
+                    ? "text-black font-medium"
+                    : isDone
+                      ? "text-[var(--uber-green-dark)]"
+                      : "text-[var(--muted)]"
+                }`}
               >
                 {STAGE_LABELS[stage]}
               </span>
               {timings[stage] !== undefined && (
-                <span className="text-[10px] text-zinc-600">
-                  {timings[stage]}ms
-                </span>
+                <span className="text-[10px] text-zinc-400">{timings[stage]}ms</span>
               )}
             </div>
           );
         })}
       </div>
 
-      <p className="text-[11px] text-zinc-500 text-center">
+      <p className="text-[11px] text-[var(--muted)] text-center">
         {STAGE_HELP[currentStage]}
       </p>
 
       {stageEvents.length > 0 && (
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 max-h-32 overflow-y-auto">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 max-h-32 overflow-y-auto">
           {stageEvents
             .slice(-5)
             .reverse()
             .map((e) => (
-              <div
-                key={e.id}
-                className="text-xs text-zinc-400 flex gap-2 py-0.5"
-              >
-                <span className="text-zinc-600">
+              <div key={e.id} className="text-xs text-[var(--muted)] flex gap-2 py-0.5">
+                <span className="text-zinc-400">
                   {new Date(e.timestamp).toLocaleTimeString()}
                 </span>
-                <span className="text-zinc-300">
+                <span className="text-zinc-700">
                   {STAGE_LABELS[e.data.stage as PipelineStage]}
                 </span>
                 <span
                   className={
                     e.data.status === "completed"
-                      ? "text-green-500"
-                      : "text-cyan-400"
+                      ? "text-[var(--uber-green-dark)]"
+                      : "text-black"
                   }
                 >
                   {e.data.status as string}

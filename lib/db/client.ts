@@ -4,7 +4,17 @@ import { mkdirSync } from "fs";
 import { dirname } from "path";
 import * as schema from "./schema";
 
-const dbPath = process.env.DATABASE_URL?.replace("file:", "") ?? "./data/demo.db";
+function resolveDbPath(): string {
+  const raw = process.env.DATABASE_URL?.replace("file:", "") ?? "./data/demo.db";
+  // Vercel serverless: only /tmp is writable; use ephemeral DB per instance
+  if (process.env.VERCEL) {
+    const name = raw.replace(/^\.?\/?(data\/)?/, "") || "demo.db";
+    return `/tmp/${name}`;
+  }
+  return raw;
+}
+
+const dbPath = resolveDbPath();
 
 mkdirSync(dirname(dbPath), { recursive: true });
 
@@ -89,6 +99,7 @@ export function initDb() {
     "ALTER TABLE creatives ADD COLUMN description TEXT",
     "ALTER TABLE campaigns ADD COLUMN channel TEXT DEFAULT 'meta'",
     "ALTER TABLE campaigns ADD COLUMN publish_adapter TEXT",
+    "ALTER TABLE creatives ADD COLUMN channel_payload TEXT",
   ];
   for (const sql of migrations) {
     try {

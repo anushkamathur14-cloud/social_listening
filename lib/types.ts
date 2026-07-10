@@ -1,4 +1,5 @@
 import type { Channel } from "./channels";
+import type { ChannelPayload } from "./creative/channel-payload";
 
 export type SignalType = "weather" | "traffic" | "trends" | "social" | "reddit";
 export type Market =
@@ -25,7 +26,8 @@ export type CampaignStatus =
   | "paused"
   | "scaled"
   | "blocked";
-export type { Channel };
+export type { Channel } from "./channels";
+export type { ChannelPayload } from "./creative/channel-payload";
 export type Platform = "meta" | "smartly" | "google_search" | "display";
 
 export interface SignalPayload {
@@ -79,6 +81,9 @@ export interface CreativeVariant {
   cta: string;
   imagePrompt: string;
   imageUrl?: string;
+  imageAlt?: string;
+  imageCredit?: string;
+  imageCreditUrl?: string;
   signalContext: string;
   signalSummary?: string;
   sourceUrl?: string;
@@ -86,6 +91,7 @@ export interface CreativeVariant {
   productOffer?: string;
   visualTreatment?: string;
   specLabel?: string;
+  channelPayload?: ChannelPayload;
   attribution: string;
   complianceStatus: "pending" | "passed" | "blocked" | "fixed" | "pending_review" | "approved" | "published";
   createdAt: string;
