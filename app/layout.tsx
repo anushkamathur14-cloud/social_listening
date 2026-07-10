@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Uber — Signal-Led User Acquisition",
+  title: "SignalScope AI — Social Listening & Brand Intelligence",
   description:
-    "Real-time signal-driven UA for Uber Rides, Uber Eats, and travel — detect, create, approve, publish.",
+    "AI-powered social listening and brand intelligence platform that monitors conversations, analyzes sentiment, detects emerging trends, and surfaces actionable insights in real time.",
 };
 
 export default function RootLayout({

@@ -27,6 +27,7 @@ import {
   type IntegrationProvider,
 } from "@/lib/integrations";
 import { MARKETS } from "@/lib/markets";
+import { platform } from "@/lib/platform";
 import type { AppEvent, Channel, Market, SignalType } from "@/lib/types";
 
 const INJECTABLE_MARKETS = MARKETS.filter((m) => m.id !== "US");
@@ -257,15 +258,15 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 py-3 space-y-3">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-black flex items-center justify-center text-white font-bold text-sm border border-zinc-700">
-                U
+              <div className="w-9 h-9 rounded-lg bg-black flex items-center justify-center text-white font-bold text-xs border border-zinc-700">
+                {platform.initials}
               </div>
               <div>
                 <h1 className="text-base font-bold tracking-tight text-gray-900">
-                  Signal-Led User Acquisition
+                  {platform.name}
                 </h1>
-                <p className="text-[11px] text-gray-500 hidden sm:block">
-                  Read signals → JIT creatives → push to ad platforms
+                <p className="text-[11px] text-gray-500 hidden sm:block max-w-md leading-snug">
+                  {platform.shortTagline}
                 </p>
               </div>
             </div>
@@ -530,7 +531,7 @@ export default function Dashboard() {
       </main>
 
       <footer className="border-t border-gray-200 py-4 text-center text-xs text-gray-500 bg-gray-50">
-        Portfolio demo · Images from{" "}
+        {platform.name} · portfolio demo · Images from{" "}
         <a
           href="https://unsplash.com/?utm_source=signal_ads_demo&utm_medium=referral"
           target="_blank"

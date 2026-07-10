@@ -136,7 +136,7 @@ export function IntegrationsPanel({
           <p className="text-[10px] text-[var(--muted)] leading-relaxed">
             Credentials are stored locally in your browser only — never sent to
             our servers except when you publish (passed to the channel adapter).
-            Portfolio demo; not affiliated with Uber, Meta, or Smartly.
+            SignalScope AI demo · not affiliated with sample brands or ad platforms.
           </p>
         </div>
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { platform } from "@/lib/platform";
+
 interface HowItWorksProps {
   onOpenIntegrations: () => void;
   onGoToDemo?: () => void;
@@ -8,48 +10,48 @@ interface HowItWorksProps {
 
 const FLOW = [
   {
-    id: "read",
-    icon: "📡",
-    title: "Read signals",
-    subtitle: "Live & mock sources",
-    body: "Poll weather, airport delays, Google Trends, and community threads across your selected cities.",
-    outputs: ["Signal feed", "Source links", "Market + vertical hint"],
+    id: "listen",
+    icon: "👂",
+    title: "Monitor conversations",
+    subtitle: "Social listening",
+    body: "Ingest community threads, search spikes, weather alerts, and travel disruptions across selected markets — live or simulated sources.",
+    outputs: ["Signal feed", "Source verification", "Sentiment hints"],
     color: "blue",
   },
   {
-    id: "trigger",
-    icon: "⚡",
-    title: "Fire triggers",
-    subtitle: "Rules engine",
-    body: "When severity, delay, spike, or engagement crosses a threshold, the pipeline starts — demo injects always run.",
-    outputs: ["Trigger fired event", "Pipeline run ID"],
+    id: "analyze",
+    icon: "🧠",
+    title: "Analyze & detect",
+    subtitle: "Brand intelligence",
+    body: "AI evaluates engagement, velocity, severity, and trend spikes. Trigger rules fire when a moment is worth acting on.",
+    outputs: ["Sentiment scoring", "Trend detection", "Trigger fired"],
     color: "violet",
+  },
+  {
+    id: "insights",
+    icon: "💡",
+    title: "Surface insights",
+    subtitle: "Actionable intelligence",
+    body: "Turn raw signals into structured insights — market, vertical, persona, and recommended angle — before any creative is built.",
+    outputs: ["Ideation angles", "Persona match", "Segment filters"],
+    color: "indigo",
   },
   {
     id: "jit",
     icon: "✨",
-    title: "JIT creatives",
-    subtitle: "Just-in-time build",
-    body: "Generate channel-specific ads on the spot — Meta, Google Search RSA, Display, Smartly — with personas, city imagery, and platform specs.",
-    outputs: ["Multi-channel variants", "Compliance check", "Ideation angles"],
-    color: "indigo",
-  },
-  {
-    id: "review",
-    icon: "👁",
-    title: "Review & approve",
-    subtitle: "Human gate",
-    body: "Compare variants side-by-side, inspect API payloads, and approve only what you want routed.",
-    outputs: ["Compare view", "Payload preview", "Your approval"],
+    title: "JIT activation",
+    subtitle: "Just-in-time creatives",
+    body: "Generate channel-ready ads on the spot — Meta, Google Search, Display, Smartly — sized to platform specs with compliance checks.",
+    outputs: ["Multi-channel variants", "RSA / Meta templates", "Review queue"],
     color: "amber",
   },
   {
     id: "push",
     icon: "🚀",
-    title: "Push to ad platforms",
-    subtitle: "Simulated or live",
-    body: "Route approved creatives to Meta, Google Ads, Smartly, or DV360 — simulated by default, live-ready when credentials are set.",
-    outputs: ["Campaign routed", "Performance metrics", "Optimizer loop"],
+    title: "Push to channels",
+    subtitle: "Optional ad routing",
+    body: "Approve and route payloads to Meta, Google Ads, Smartly, or DV360 — simulated by default, live-ready with credentials.",
+    outputs: ["API payloads", "Campaign routed", "Performance loop"],
     color: "green",
   },
 ];
@@ -58,50 +60,50 @@ const USE_CASES = [
   {
     icon: "📈",
     title: "Growth & UA teams",
-    summary: "Signal → JIT creative → launch in minutes, not days.",
+    summary: "From social buzz to live campaigns in minutes.",
     points: [
-      "End-to-end latency visible in the pipeline tracker",
-      "Cross-channel variants from one signal",
-      "City promos tied to real local moments",
+      "Signal → insight → JIT creative in one flow",
+      "Cross-channel activation from one intelligence moment",
+      "City and channel segmentation built in",
     ],
   },
   {
     icon: "⚙️",
     title: "Ad ops & partnerships",
-    summary: "See exact payloads before anything hits an ad account.",
+    summary: "Inspect payloads before anything hits an ad account.",
     points: [
       "Platform-specific API preview per channel",
-      "Simulated routing with zero spend by default",
-      "Optional live credentials for Meta, Google, Smartly, DV360",
+      "Human approval gate on every activation",
+      "Optional live credentials for major ad APIs",
     ],
   },
   {
     icon: "🎯",
     title: "Audience segmentation",
-    summary: "Right message, market, and channel — not one blast.",
+    summary: "Right message for the right market and moment.",
     points: [
-      "City filter on signals and creatives",
-      "Channel filter — run Meta-only, Search-only, or full stack",
-      "Vertical routing: Rides, Eats, Travel per signal",
+      "Filter signals and outputs by city",
+      "Channel filter — Meta, Search, Display, Smartly",
+      "Vertical routing from intelligence signals",
     ],
   },
   {
     icon: "👤",
-    title: "Persona building",
-    summary: "Distinct user types, not generic promos.",
+    title: "Persona & brand intelligence",
+    summary: "Understand who is talking and what they need.",
     points: [
-      "Commuter, foodie, traveler personas per signal",
-      "LLM ideation to brainstorm angles first",
-      "RSA / Display variant sets for testing",
+      "Commuter, foodie, traveler personas from context",
+      "LLM ideation on top of listening signals",
+      "Sentiment-aware creative angles",
     ],
   },
 ];
 
 const SIGNALS = [
-  { icon: "⛈️", label: "Weather", example: "Storm → Rides safety + Eats delivery" },
-  { icon: "✈️", label: "Traffic", example: "Airport delay → Travel pickup offer" },
-  { icon: "📈", label: "Trends", example: "Search spike → Eats new-user promo" },
-  { icon: "💬", label: "Community", example: "Local buzz → matched UA angle" },
+  { icon: "💬", label: "Conversations", example: "Community threads → sentiment + promo angle" },
+  { icon: "📈", label: "Trends", example: "Search spikes → emerging demand signals" },
+  { icon: "⛈️", label: "Context", example: "Weather & events → moment-based messaging" },
+  { icon: "✈️", label: "Mobility", example: "Travel delays → localized activation" },
 ];
 
 const COLOR: Record<string, { bg: string; border: string; text: string; dot: string }> = {
@@ -119,32 +121,29 @@ export function HowItWorks({
 }: HowItWorksProps) {
   return (
     <div className="space-y-10 max-w-6xl mx-auto">
-      {/* Hero */}
       <header className="text-center sm:text-left">
         <p className="text-xs uppercase tracking-widest text-green-700 font-semibold mb-2">
-          Portfolio demo · not affiliated with Uber
+          {platform.name}
         </p>
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight mb-3">
-          Read signals → build JIT creatives → push to ad platforms
+          Social listening → brand intelligence → activation
         </h2>
         <p className="text-base text-gray-600 leading-relaxed max-w-3xl">
-          A full signal-led UA pipeline: ingest local demand signals, generate
-          just-in-time ads per channel and persona, then route approved
-          creatives to Meta, Google, Smartly, or DV360 — with you in the loop
-          at every step.
+          {platform.tagline} This demo extends that pipeline with{" "}
+          <strong className="text-gray-900">just-in-time creatives</strong> and{" "}
+          <strong className="text-gray-900">optional ad-platform routing</strong>{" "}
+          — using a sample mobility brand as the activation layer.
         </p>
       </header>
 
-      {/* Visual flow */}
       <section className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm">
         <h3 className="text-lg font-bold text-gray-900 mb-1">End-to-end flow</h3>
         <p className="text-sm text-gray-500 mb-8">
-          From signal ingestion to ad platform routing
+          Listen → analyze → insight → activate → push
         </p>
 
-        {/* Desktop horizontal flow */}
         <div className="hidden lg:block overflow-x-auto pb-2">
-          <div className="flex items-stretch min-w-[900px] gap-0">
+          <div className="flex items-stretch min-w-[1000px] gap-0">
             {FLOW.map((step, i) => {
               const c = COLOR[step.color];
               return (
@@ -172,10 +171,7 @@ export function HowItWorks({
                     </ul>
                   </div>
                   {i < FLOW.length - 1 && (
-                    <div
-                      className="flex items-center px-1 shrink-0 text-gray-300"
-                      aria-hidden
-                    >
+                    <div className="flex items-center px-1 shrink-0 text-gray-300" aria-hidden>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M10 6L16 12L10 18V6Z" />
                       </svg>
@@ -187,15 +183,12 @@ export function HowItWorks({
           </div>
         </div>
 
-        {/* Mobile vertical flow */}
         <div className="lg:hidden space-y-0">
           {FLOW.map((step, i) => {
             const c = COLOR[step.color];
             return (
               <div key={step.id}>
-                <div
-                  className={`rounded-xl border-2 ${c.border} ${c.bg} p-5`}
-                >
+                <div className={`rounded-xl border-2 ${c.border} ${c.bg} p-5`}>
                   <div className="flex items-start gap-3">
                     <span className="text-3xl leading-none" aria-hidden>
                       {step.icon}
@@ -234,7 +227,6 @@ export function HowItWorks({
         </div>
       </section>
 
-      {/* Signal sources */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {SIGNALS.map((s) => (
           <div
@@ -250,11 +242,10 @@ export function HowItWorks({
         ))}
       </section>
 
-      {/* Who it's for */}
       <section>
         <h3 className="text-lg font-bold text-gray-900 mb-1">Who it&apos;s for</h3>
         <p className="text-sm text-gray-500 mb-5">
-          Growth, ad ops, segmentation, and persona teams
+          Brand, growth, ops, and intelligence teams
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {USE_CASES.map((uc) => (
@@ -286,14 +277,13 @@ export function HowItWorks({
         </div>
       </section>
 
-      {/* Callouts row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <aside className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <h3 className="text-sm font-semibold text-amber-950 mb-2">
-            Simulated by default
+            Demo mode — simulated activation
           </h3>
           <p className="text-sm text-amber-900/90 leading-relaxed">
-            &ldquo;Push to ad platforms&rdquo; shows the exact API payload but{" "}
+            Ad routing shows exact API payloads but{" "}
             <strong>spends no money</strong> until you add credentials in{" "}
             <button
               type="button"
@@ -312,8 +302,8 @@ export function HowItWorks({
           <div>
             <p className="text-base font-semibold mb-2">Try the live demo</p>
             <p className="text-sm text-gray-300 leading-relaxed">
-              Pick channels, click a scenario, watch signals → JIT creatives →
-              approve → route — under 30 seconds.
+              Monitor a signal, generate JIT creatives, approve, and route — under
+              30 seconds.
             </p>
           </div>
           {onGoToDemo && (
