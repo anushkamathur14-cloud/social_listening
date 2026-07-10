@@ -10,9 +10,9 @@ export function IntegrationsCallout({ onOpen, configuredCount }: IntegrationsCal
     <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 flex flex-wrap items-center gap-3 text-xs text-gray-700 mb-4">
       <span className="font-semibold text-gray-900 shrink-0">About routing</span>
       <p className="flex-1 min-w-[200px] leading-relaxed">
-        Approving a creative <strong>does not spend ad budget</strong> in this demo — it
-        simulates sending the payload to Meta, Google Ads, Smartly, or DV360. Connect your own
-        API keys to mark routes as live-ready.
+        Add an <strong>OpenAI key</strong> for live ideation and customized creatives, or
+        connect ad APIs to route approved payloads live-ready. Without keys, the demo uses
+        templates and simulated routing.
       </p>
       <button
         type="button"
@@ -21,7 +21,7 @@ export function IntegrationsCallout({ onOpen, configuredCount }: IntegrationsCal
       >
         {configuredCount > 0
           ? `Integrations (${configuredCount} set)`
-          : "Add ad account APIs"}
+          : "Open Integrations"}
       </button>
     </div>
   );

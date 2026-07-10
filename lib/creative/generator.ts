@@ -14,6 +14,7 @@ import { getMarketLabel } from "../markets";
 import type { ChannelPayload, CreativeVariant, Market, Signal } from "../types";
 import { stampAttribution } from "./attribution";
 import { getStockImage } from "./stock-images";
+import { resolveLlm, type LlmRunOptions } from "./llm-config";
 
 interface GeneratedCreative {
   persona: string;
@@ -294,14 +295,16 @@ function mockCreatives(
 export async function generateCreatives(
   signal: Signal,
   triggerId: string,
-  channels: Channel[]
+  channels: Channel[],
+  llmOptions?: LlmRunOptions
 ): Promise<CreativeVariant[]> {
-  if (!config.openaiApiKey) {
+  const llm = resolveLlm(llmOptions);
+  if (!llm.apiKey) {
     return mockCreatives(signal, triggerId, channels);
   }
 
   try {
-    const openai = new OpenAI({ apiKey: config.openaiApiKey });
+    const openai = new OpenAI({ apiKey: llm.apiKey });
     const summary = signal.payload.summary as string;
     const channelSpecs = channels
       .map((c) => {
@@ -319,8 +322,13 @@ export async function generateCreatives(
       })
       .join("; ");
 
+    const directionParts = [
+      llm.brandVoice ? `Brand voice: ${llm.brandVoice}` : null,
+      llm.customBrief ? `Custom direction: ${llm.customBrief}` : null,
+    ].filter(Boolean);
+
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: llm.model,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -334,7 +342,8 @@ One UA variant per channel. Follow platform character limits and best practices.
           content: `Channels: ${channelSpecs}
 Signal: ${signal.type} in ${getMarketLabel(signal.market)}
 Context: ${summary}
-Goal: new user sign-up for the best-matched Uber vertical (Rides, Eats, or Travel).`,
+Goal: new user sign-up for the best-matched Uber vertical (Rides, Eats, or Travel).
+${directionParts.length ? `\n${directionParts.join("\n")}` : ""}`,
         },
       ],
     });

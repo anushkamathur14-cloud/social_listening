@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChannelSelector } from "@/components/ChannelSelector";
+import { CreativeCustomizer } from "@/components/CreativeCustomizer";
 import { CreativeCard } from "@/components/CreativeCard";
 import { DemoScenarios, type DemoScenario } from "@/components/DemoScenarios";
 import { HowItWorks } from "@/components/HowItWorks";
@@ -21,6 +22,7 @@ import {
   signalsToEvents,
 } from "@/lib/events/hydrate";
 import {
+  isLlmConfigured,
   isProviderConfigured,
   loadIntegrations,
   type IntegrationConfig,
@@ -175,6 +177,7 @@ export default function Dashboard() {
             type: type ?? signalType,
             market: market ?? injectMarket,
             channels: selectedChannels,
+            llm: integrations.llm,
           }),
         });
         const data = await res.json();
@@ -191,7 +194,7 @@ export default function Dashboard() {
         setInjecting(false);
       }
     },
-    [signalType, injectMarket, selectedChannels]
+    [signalType, injectMarket, selectedChannels, integrations.llm]
   );
 
   const runScenario = useCallback(
@@ -230,6 +233,9 @@ export default function Dashboard() {
   const configuredCount = (
     ["meta", "smartly", "google_ads", "dv360"] as IntegrationProvider[]
   ).filter((p) => isProviderConfigured(integrations, p)).length;
+
+  const integrationBadgeCount =
+    configuredCount + (isLlmConfigured(integrations) ? 1 : 0);
 
   const filteredEvents = events.filter((e) => {
     if (e.type !== "signal_detected") return true;
@@ -278,9 +284,9 @@ export default function Dashboard() {
                 className="rounded-lg text-xs px-3 py-1.5 font-medium border border-gray-200 hover:bg-gray-50 transition-colors text-gray-800"
               >
                 Integrations
-                {configuredCount > 0 && (
+                {integrationBadgeCount > 0 && (
                   <span className="ml-1.5 rounded-full bg-[var(--uber-green)] text-white text-[9px] px-1.5 py-0.5">
-                    {configuredCount}
+                    {integrationBadgeCount}
                   </span>
                 )}
               </button>
@@ -479,6 +485,8 @@ export default function Dashboard() {
               <SignalIdeator
                 events={events}
                 selectedChannels={selectedChannels}
+                integrations={integrations}
+                onOpenIntegrations={() => setShowIntegrations(true)}
               />
             </section>
 
@@ -503,9 +511,15 @@ export default function Dashboard() {
             </p>
             <IntegrationsCallout
               onOpen={() => setShowIntegrations(true)}
-              configuredCount={configuredCount}
+              configuredCount={integrationBadgeCount}
             />
             <ChannelFilterBanner selectedChannels={selectedChannels} />
+            <CreativeCustomizer
+              events={events}
+              selectedChannels={selectedChannels}
+              integrations={integrations}
+              onOpenIntegrations={() => setShowIntegrations(true)}
+            />
             <CreativeCard
               events={events}
               onPublish={publishCreative}

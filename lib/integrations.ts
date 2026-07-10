@@ -2,6 +2,14 @@ import type { Channel } from "./channels";
 
 export type IntegrationProvider = "meta" | "smartly" | "google_ads" | "dv360";
 
+export interface LlmCredentials {
+  apiKey: string;
+  /** e.g. gpt-4o-mini, gpt-4o */
+  model?: string;
+  /** Default tone / direction applied to every generation */
+  brandVoice?: string;
+}
+
 export interface MetaCredentials {
   accessToken: string;
   adAccountId: string;
@@ -24,6 +32,7 @@ export interface Dv360Credentials {
 }
 
 export interface IntegrationConfig {
+  llm?: LlmCredentials;
   meta?: MetaCredentials;
   smartly?: SmartlyCredentials;
   google_ads?: GoogleAdsCredentials;
@@ -50,6 +59,10 @@ export function saveIntegrations(config: IntegrationConfig): void {
 export function clearIntegrations(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEY);
+}
+
+export function isLlmConfigured(config: IntegrationConfig): boolean {
+  return Boolean(config.llm?.apiKey?.trim());
 }
 
 export function isProviderConfigured(
@@ -91,6 +104,31 @@ export function hasLiveCredentials(
 ): boolean {
   return isProviderConfigured(config, channelProvider(channel));
 }
+
+export const LLM_FIELDS = {
+  label: "AI creative generation",
+  description:
+    "Your OpenAI key powers live ideation and customized creatives. Stored in your browser only.",
+  fields: [
+    {
+      key: "apiKey",
+      label: "OpenAI API Key",
+      placeholder: "sk-...",
+      secret: true,
+    },
+    {
+      key: "model",
+      label: "Model",
+      placeholder: "gpt-4o-mini",
+    },
+    {
+      key: "brandVoice",
+      label: "Default brand voice / direction",
+      placeholder: "e.g. Playful, urban, Gen Z — emphasize convenience and new-user promos",
+      multiline: true,
+    },
+  ],
+} as const;
 
 export const INTEGRATION_FIELDS: Record<
   IntegrationProvider,

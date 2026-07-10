@@ -2,14 +2,25 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { CreativeAngle } from "@/lib/creative/ideator";
+import {
+  isLlmConfigured,
+  type IntegrationConfig,
+} from "@/lib/integrations";
 import type { AppEvent, Channel } from "@/lib/types";
 
 interface SignalIdeatorProps {
   events: AppEvent[];
   selectedChannels: Channel[];
+  integrations: IntegrationConfig;
+  onOpenIntegrations: () => void;
 }
 
-export function SignalIdeator({ events, selectedChannels }: SignalIdeatorProps) {
+export function SignalIdeator({
+  events,
+  selectedChannels,
+  integrations,
+  onOpenIntegrations,
+}: SignalIdeatorProps) {
   const latestSignal = [...events]
     .reverse()
     .find((e) => e.type === "signal_detected");
@@ -24,9 +35,11 @@ export function SignalIdeator({ events, selectedChannels }: SignalIdeatorProps) 
     | undefined;
 
   const [angles, setAngles] = useState<CreativeAngle[]>([]);
-  const [source, setSource] = useState<"openai" | "mock" | null>(null);
+  const [source, setSource] = useState<"openai" | "mock" | "user" | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const llmReady = isLlmConfigured(integrations);
 
   const ideate = useCallback(async () => {
     if (!signal?.id) return;
@@ -39,6 +52,7 @@ export function SignalIdeator({ events, selectedChannels }: SignalIdeatorProps) 
         body: JSON.stringify({
           signalId: signal.id,
           channels: selectedChannels,
+          llm: integrations.llm,
         }),
       });
       const data = await res.json();
@@ -53,7 +67,7 @@ export function SignalIdeator({ events, selectedChannels }: SignalIdeatorProps) 
     } finally {
       setLoading(false);
     }
-  }, [signal?.id, selectedChannels]);
+  }, [signal?.id, selectedChannels, integrations.llm]);
 
   useEffect(() => {
     setAngles([]);
@@ -65,7 +79,8 @@ export function SignalIdeator({ events, selectedChannels }: SignalIdeatorProps) 
     return (
       <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
         <p className="text-xs text-gray-500">
-          Run a demo or inject a signal — then use AI to brainstorm UA angles before creatives land.
+          Run a demo or inject a signal — then use AI to brainstorm angles before
+          creatives land.
         </p>
       </div>
     );
@@ -85,19 +100,19 @@ export function SignalIdeator({ events, selectedChannels }: SignalIdeatorProps) 
         </div>
         <button
           type="button"
-          onClick={ideate}
+          onClick={llmReady ? ideate : onOpenIntegrations}
           disabled={loading || selectedChannels.length === 0}
           className="shrink-0 rounded-lg bg-black hover:bg-zinc-800 disabled:opacity-40 text-white text-[11px] px-3 py-1.5 font-medium"
         >
-          {loading ? "Thinking…" : "Suggest angles"}
+          {loading ? "Thinking…" : llmReady ? "Suggest angles" : "Add OpenAI key"}
         </button>
       </div>
 
       {source && (
         <p className="text-[10px] text-gray-400">
-          {source === "openai"
-            ? "Live LLM suggestions (OPENAI_API_KEY)"
-            : "Template suggestions — add OPENAI_API_KEY for live ideation"}
+          {source === "mock"
+            ? "Template suggestions — add your OpenAI key in Integrations for live LLM ideation"
+            : `Live LLM suggestions · ${integrations.llm?.model ?? "gpt-4o-mini"}`}
         </p>
       )}
 
@@ -122,9 +137,6 @@ export function SignalIdeator({ events, selectedChannels }: SignalIdeatorProps) 
               </div>
               <p className="text-gray-800 font-medium">{angle.hook}</p>
               <p className="text-[10px] text-gray-500 mt-1">{angle.rationale}</p>
-              <p className="text-[10px] text-gray-400 mt-1">
-                Channels: {angle.channels.join(", ")}
-              </p>
             </li>
           ))}
         </ul>

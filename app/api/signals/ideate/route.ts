@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { llmFromCredentials } from "@/lib/creative/llm-config";
+import type { LlmCredentials } from "@/lib/integrations";
 import { suggestCreativeAngles } from "@/lib/creative/ideator";
 import {
   ensureInitialized,
@@ -53,7 +55,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = await suggestCreativeAngles(signal, channels);
+  const llm = llmFromCredentials(body.llm as LlmCredentials | undefined);
+  const result = await suggestCreativeAngles(signal, channels, llm);
 
   return NextResponse.json({
     ok: true,

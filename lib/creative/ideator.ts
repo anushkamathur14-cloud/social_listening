@@ -1,9 +1,9 @@
 import OpenAI from "openai";
 import { BRAND_SYSTEM_PROMPT } from "../brand";
 import { CHANNEL_MAP, type Channel } from "../channels";
-import { config } from "../config";
 import { getMarketLabel } from "../markets";
 import type { Signal } from "../types";
+import { resolveLlm, type LlmRunOptions } from "./llm-config";
 
 export interface CreativeAngle {
   id: string;
@@ -60,20 +60,22 @@ function mockAngles(signal: Signal, channels: Channel[]): CreativeAngle[] {
 
 export async function suggestCreativeAngles(
   signal: Signal,
-  channels: Channel[]
-): Promise<{ angles: CreativeAngle[]; source: "openai" | "mock" }> {
-  if (!config.openaiApiKey) {
+  channels: Channel[],
+  llmOptions?: LlmRunOptions
+): Promise<{ angles: CreativeAngle[]; source: "openai" | "mock" | "user" }> {
+  const llm = resolveLlm(llmOptions);
+  if (!llm.apiKey) {
     return { angles: mockAngles(signal, channels), source: "mock" };
   }
 
   try {
-    const openai = new OpenAI({ apiKey: config.openaiApiKey });
+    const openai = new OpenAI({ apiKey: llm.apiKey });
     const channelSpecs = channels
       .map((c) => `${c} (${CHANNEL_MAP[c].label})`)
       .join(", ");
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: llm.model,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -88,7 +90,7 @@ vertical must be Rides, Eats, or Travel. channels must be from the allowed list.
 Market: ${getMarketLabel(signal.market)}
 Summary: ${signal.payload.summary}
 Allowed channels: ${channelSpecs}
-Suggest 3 distinct UA creative angles before drafting copy.`,
+${llm.brandVoice ? `Brand voice: ${llm.brandVoice}\n` : ""}${llm.customBrief ? `Focus: ${llm.customBrief}\n` : ""}Suggest 3 distinct UA creative angles before drafting copy.`,
         },
       ],
     });
@@ -109,7 +111,7 @@ Suggest 3 distinct UA creative angles before drafting copy.`,
       return { angles: mockAngles(signal, channels), source: "mock" };
     }
 
-    return { angles, source: "openai" };
+    return { angles, source: llm.source === "user" ? "user" : "openai" };
   } catch {
     return { angles: mockAngles(signal, channels), source: "mock" };
   }

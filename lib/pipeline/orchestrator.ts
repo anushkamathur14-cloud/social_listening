@@ -5,6 +5,7 @@ import { DEFAULT_ACTIVE_MARKETS } from "../markets";
 import { DEFAULT_CHANNELS } from "../channels";
 import { parseChannelPayload } from "../creative/channel-payload";
 import { generateCreatives } from "../creative/generator";
+import type { LlmRunOptions } from "../creative/llm-config";
 import { applyComplianceFixes, validateCreative } from "../compliance/rules";
 import { db, initDb } from "../db/client";
 import { campaigns, creatives, pipelineRuns, settings } from "../db/schema";
@@ -118,7 +119,7 @@ async function emitStage(
 export async function runPipeline(
   triggerId: string,
   signalId: string,
-  options?: { force?: boolean }
+  options?: { force?: boolean; llm?: LlmRunOptions }
 ) {
   if (pipelinePaused && !options?.force) return;
 
@@ -166,7 +167,12 @@ export async function runPipeline(
   await emitStage(runId, triggerId, "generate", timings, "running", {
     message: `Generating for channels: ${channels.join(", ")}`,
   });
-  const rawCreatives = await generateCreatives(signal, triggerId, channels);
+  const rawCreatives = await generateCreatives(
+    signal,
+    triggerId,
+    channels,
+    options?.llm
+  );
   timings.generate = Date.now() - genStart;
   await emitStage(runId, triggerId, "generate", timings, "completed", {
     message: `${rawCreatives.length} channel-specific creatives generated`,
@@ -255,7 +261,11 @@ export async function processSignal(signal: Signal) {
   return trigger;
 }
 
-async function processInjectedSignal(signal: Signal, channels?: Channel[]) {
+async function processInjectedSignal(
+  signal: Signal,
+  channels?: Channel[],
+  llm?: LlmRunOptions
+) {
   if (channels?.length) {
     selectedChannels = channels;
     await saveSetting("selectedChannels", JSON.stringify(channels));
@@ -278,7 +288,7 @@ async function processInjectedSignal(signal: Signal, channels?: Channel[]) {
   };
 
   await persistTrigger(trigger);
-  await runPipeline(trigger.id, signal.id, { force: true });
+  await runPipeline(trigger.id, signal.id, { force: true, llm });
   return { trigger, signalId: signal.id, pipelineStarted: true };
 }
 
@@ -324,7 +334,8 @@ export function startBackgroundJobs() {
 export async function injectSignal(
   type: SignalType,
   market: Market,
-  channels?: Channel[]
+  channels?: Channel[],
+  llm?: LlmRunOptions
 ) {
   const { createWeatherSignal } = await import("../signals/weather");
   const { createTrafficSignal } = await import("../signals/traffic");
@@ -340,7 +351,117 @@ export async function injectSignal(
   };
 
   const signal = creators[type](market);
-  return processInjectedSignal(signal, channels);
+  return processInjectedSignal(signal, channels, llm);
+}
+
+export async function customizeCreatives(params: {
+  signalId: string;
+  channels: Channel[];
+  customBrief: string;
+  llm: LlmRunOptions;
+  triggerId?: string;
+}) {
+  const signalRow = await getSignalById(params.signalId);
+  if (!signalRow) return null;
+
+  const signal: Signal = {
+    id: signalRow.id,
+    type: signalRow.type as SignalType,
+    market: signalRow.market as Market,
+    severity: signalRow.severity as Signal["severity"],
+    payload: JSON.parse(signalRow.payload),
+    detectedAt: signalRow.detectedAt,
+  };
+
+  const triggerId = params.triggerId ?? nanoid();
+
+  if (!params.triggerId) {
+    await persistTrigger({
+      id: triggerId,
+      signalId: signal.id,
+      type: signal.type,
+      market: signal.market,
+      rule: "custom_llm: user-directed creative generation",
+      firedAt: new Date().toISOString(),
+    });
+  }
+
+  broadcaster.emitEvent("pipeline_stage", {
+    runId: nanoid(),
+    triggerId,
+    stage: "generate",
+    status: "running",
+    message: `Custom LLM generation: ${params.customBrief.slice(0, 80)}…`,
+    timings: {},
+  });
+
+  const rawCreatives = await generateCreatives(
+    signal,
+    triggerId,
+    params.channels,
+    { ...params.llm, customBrief: params.customBrief }
+  );
+
+  const validatedCreatives = rawCreatives.map((c) => {
+    const result = validateCreative(c);
+    const fixed = applyComplianceFixes(c, result);
+    const forReview = {
+      ...fixed,
+      complianceStatus:
+        fixed.complianceStatus === "blocked"
+          ? ("blocked" as const)
+          : ("pending_review" as const),
+    };
+    broadcaster.emitEvent("compliance_result", {
+      creativeId: c.id,
+      passed: result.passed,
+      violations: result.violations,
+      autoFixes: result.autoFixes,
+      status: forReview.complianceStatus,
+    });
+    broadcaster.emitEvent("creative_generated", {
+      creative: forReview,
+      customized: true,
+      customBrief: params.customBrief,
+    });
+    return forReview;
+  });
+
+  for (const creative of validatedCreatives.filter(
+    (c) => c.complianceStatus !== "blocked"
+  )) {
+    await db.insert(creatives).values({
+      id: creative.id,
+      triggerId: creative.triggerId,
+      persona: creative.persona,
+      market: creative.market,
+      headline: creative.headline,
+      copy: creative.copy,
+      cta: creative.cta,
+      imagePrompt: creative.imagePrompt,
+      signalContext: creative.signalContext,
+      attribution: creative.attribution,
+      complianceStatus: creative.complianceStatus,
+      createdAt: creative.createdAt,
+      channel: creative.channel,
+      imageUrl: creative.imageUrl ?? null,
+      description: creative.description ?? null,
+      channelPayload: creative.channelPayload
+        ? JSON.stringify(creative.channelPayload)
+        : null,
+    });
+  }
+
+  broadcaster.emitEvent("pipeline_stage", {
+    runId: nanoid(),
+    triggerId,
+    stage: "validate",
+    status: "completed",
+    message: `${validatedCreatives.length} customized creatives ready for review`,
+    timings: {},
+  });
+
+  return { triggerId, creatives: validatedCreatives };
 }
 
 export async function publishCreativeById(
