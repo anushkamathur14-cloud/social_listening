@@ -264,8 +264,8 @@ export default function Dashboard() {
                 <h1 className="text-base font-bold tracking-tight text-gray-900">
                   Signal-Led User Acquisition
                 </h1>
-                <p className="text-[11px] text-gray-500">
-                  Uber Rides · Eats · Travel — detect signals → draft UA ads → you approve → optional route to your ad APIs
+                <p className="text-[11px] text-gray-500 hidden sm:block">
+                  Read signals → JIT creatives → push to ad platforms
                 </p>
               </div>
             </div>
@@ -284,148 +284,51 @@ export default function Dashboard() {
                 )}
               </button>
 
-              <span
-                className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${
-                  connected
-                    ? "text-[var(--uber-green-dark)] border-green-200 bg-green-50"
-                    : "text-red-600 border-red-200 bg-red-50"
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[var(--uber-green)] animate-pulse" : "bg-red-500"}`}
-                />
-                {connected ? "Live" : "Offline"}
-              </span>
-
-              <button
-                type="button"
-                onClick={togglePause}
-                className={`rounded-lg text-xs px-3 py-1.5 font-medium transition-colors ${
-                  paused
-                    ? "bg-[var(--uber-green)] hover:bg-[var(--uber-green-dark)] text-white"
-                    : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-[var(--border)]"
-                }`}
-              >
-                {paused ? "▶ Resume" : "⏸ Pause"}
-              </button>
-            </div>
-          </div>
-
-          <StatsBar
-            events={events}
-            activeMarkets={activeMarkets}
-            selectedChannels={selectedChannels}
-          />
-
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] text-gray-500 uppercase tracking-wider shrink-0">
-                Quick demo
-              </span>
-              <DemoScenarios
-                onRun={runScenario}
-                running={injecting}
-                disabled={selectedChannels.length === 0}
-              />
-            </div>
-
-            {injectMessage && (
-              <p className="text-[11px] text-gray-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                {injectMessage}
-              </p>
-            )}
-
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-200">
-              <div className="relative" ref={cityPickerRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowCityPicker((s) => !s)}
-                  className="rounded-lg bg-white border border-gray-200 text-xs px-3 py-1.5 hover:bg-gray-50 text-gray-800"
-                >
-                  Cities ({activeMarkets.length}) ▾
-                </button>
-                {showCityPicker && (
-                  <div className="absolute left-0 top-full mt-1 z-30 w-56 rounded-lg border border-gray-200 bg-white shadow-xl p-2 max-h-64 overflow-y-auto">
-                    {INJECTABLE_MARKETS.map((m) => (
-                      <label
-                        key={m.id}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-zinc-50 cursor-pointer text-xs"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={activeMarkets.includes(m.id)}
-                          onChange={() => toggleCity(m.id)}
-                        />
-                        <span>{m.label}</span>
-                        <span className="ml-auto text-zinc-400">{m.id}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <select
-                value={injectMarket}
-                onChange={(e) => setInjectMarket(e.target.value as Market)}
-                className="rounded-lg bg-white border border-gray-200 text-xs px-3 py-1.5 text-gray-800"
-              >
-                {INJECTABLE_MARKETS.filter((m) => activeMarkets.includes(m.id)).map(
-                  (m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  )
-                )}
-              </select>
-
-              <div className="flex flex-wrap gap-1">
-                {SIGNAL_TYPES.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setSignalType(t.id)}
-                    className={`rounded-lg text-xs px-2.5 py-1.5 border transition-colors ${
-                      signalType === t.id
-                        ? "bg-black border-black text-white"
-                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+              {activeTab !== "how-it-works" && (
+                <>
+                  <span
+                    className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${
+                      connected
+                        ? "text-[var(--uber-green-dark)] border-green-200 bg-green-50"
+                        : "text-red-600 border-red-200 bg-red-50"
                     }`}
                   >
-                    {t.icon} {t.label}
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[var(--uber-green)] animate-pulse" : "bg-red-500"}`}
+                    />
+                    {connected ? "Live" : "Offline"}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={togglePause}
+                    className={`rounded-lg text-xs px-3 py-1.5 font-medium transition-colors ${
+                      paused
+                        ? "bg-[var(--uber-green)] hover:bg-[var(--uber-green-dark)] text-white"
+                        : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-[var(--border)]"
+                    }`}
+                  >
+                    {paused ? "▶ Resume" : "⏸ Pause"}
                   </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => injectSignal()}
-                disabled={injecting || selectedChannels.length === 0}
-                className="rounded-lg bg-black hover:bg-zinc-800 disabled:opacity-40 text-white text-xs px-4 py-1.5 font-semibold transition-colors ml-auto"
-              >
-                {injecting ? "Crawling sources…" : "Inject Signal"}
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[10px] text-gray-500 uppercase tracking-wide shrink-0">
-                Channels
-              </span>
-              <ChannelSelector
-                selected={selectedChannels}
-                onChange={onChannelsChange}
-              />
+                </>
+              )}
             </div>
           </div>
 
-          <nav className="flex gap-1 border-b border-gray-200 -mb-px">
+          {/* Primary navigation — top level */}
+          <nav
+            className="flex gap-1 border-b border-gray-200 -mb-px pt-1"
+            aria-label="Main"
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative px-4 py-2 text-xs font-medium transition-colors ${
+                className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
                   activeTab === tab.id
-                    ? "text-black border-b-2 border-black -mb-px"
-                    : "text-gray-500 hover:text-black"
+                    ? "text-black border-b-2 border-black -mb-px bg-gray-50/80 rounded-t-lg"
+                    : "text-gray-500 hover:text-black hover:bg-gray-50/50 rounded-t-lg"
                 }`}
               >
                 {tab.label}
@@ -437,6 +340,116 @@ export default function Dashboard() {
               </button>
             ))}
           </nav>
+
+          {/* Demo controls — only on operational tabs */}
+          {activeTab !== "how-it-works" && (
+            <>
+              <StatsBar
+                events={events}
+                activeMarkets={activeMarkets}
+                selectedChannels={selectedChannels}
+              />
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider shrink-0">
+                    Quick demo
+                  </span>
+                  <DemoScenarios
+                    onRun={runScenario}
+                    running={injecting}
+                    disabled={selectedChannels.length === 0}
+                  />
+                </div>
+
+                {injectMessage && (
+                  <p className="text-[11px] text-gray-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                    {injectMessage}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-200">
+                  <div className="relative" ref={cityPickerRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowCityPicker((s) => !s)}
+                      className="rounded-lg bg-white border border-gray-200 text-xs px-3 py-1.5 hover:bg-gray-50 text-gray-800"
+                    >
+                      Cities ({activeMarkets.length}) ▾
+                    </button>
+                    {showCityPicker && (
+                      <div className="absolute left-0 top-full mt-1 z-30 w-56 rounded-lg border border-gray-200 bg-white shadow-xl p-2 max-h-64 overflow-y-auto">
+                        {INJECTABLE_MARKETS.map((m) => (
+                          <label
+                            key={m.id}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-zinc-50 cursor-pointer text-xs"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={activeMarkets.includes(m.id)}
+                              onChange={() => toggleCity(m.id)}
+                            />
+                            <span>{m.label}</span>
+                            <span className="ml-auto text-zinc-400">{m.id}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <select
+                    value={injectMarket}
+                    onChange={(e) => setInjectMarket(e.target.value as Market)}
+                    className="rounded-lg bg-white border border-gray-200 text-xs px-3 py-1.5 text-gray-800"
+                  >
+                    {INJECTABLE_MARKETS.filter((m) =>
+                      activeMarkets.includes(m.id)
+                    ).map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="flex flex-wrap gap-1">
+                    {SIGNAL_TYPES.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSignalType(t.id)}
+                        className={`rounded-lg text-xs px-2.5 py-1.5 border transition-colors ${
+                          signalType === t.id
+                            ? "bg-black border-black text-white"
+                            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {t.icon} {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => injectSignal()}
+                    disabled={injecting || selectedChannels.length === 0}
+                    className="rounded-lg bg-black hover:bg-zinc-800 disabled:opacity-40 text-white text-xs px-4 py-1.5 font-semibold transition-colors ml-auto"
+                  >
+                    {injecting ? "Crawling sources…" : "Inject Signal"}
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wide shrink-0">
+                    Channels
+                  </span>
+                  <ChannelSelector
+                    selected={selectedChannels}
+                    onChange={onChannelsChange}
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </header>
 
@@ -444,6 +457,7 @@ export default function Dashboard() {
         {activeTab === "how-it-works" && (
           <HowItWorks
             onOpenIntegrations={() => setShowIntegrations(true)}
+            onGoToDemo={() => setActiveTab("overview")}
             integrationsConfigured={configuredCount}
           />
         )}
