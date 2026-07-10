@@ -10,12 +10,11 @@ const BLOCKED_WORDS = [
   "100% free",
   "no risk",
   "competitor",
+  "lyft",
 ];
 
 const WEATHER_DISCLAIMER =
-  "Offers subject to availability. Weather conditions may affect delivery.";
-
-const ALCOHOL_DISCLAIMER = brand.alcoholDisclaimer;
+  "Promo for new users. Availability varies by city. Terms apply.";
 
 export function validateCreative(
   creative: CreativeVariant
@@ -42,6 +41,18 @@ export function validateCreative(
     autoFixes.push("Appended attribution footer");
   }
 
+  const hasPromoTerms =
+    copy.toLowerCase().includes("terms apply") ||
+    copy.toLowerCase().includes("new user");
+
+  if (
+    (copy.includes("$") || copy.toLowerCase().includes("off")) &&
+    !hasPromoTerms
+  ) {
+    copy = `${copy} ${brand.promoDisclaimer}`;
+    autoFixes.push("Appended promo terms disclaimer");
+  }
+
   if (headline.length > 40) {
     violations.push(`Headline exceeds 40 chars (${headline.length})`);
     headline = headline.slice(0, 40);
@@ -60,17 +71,9 @@ export function validateCreative(
     creative.signalContext.toLowerCase().includes("heat") ||
     creative.signalContext.toLowerCase().includes("snow");
 
-  if (isWeatherRelated && !copy.includes("subject to availability")) {
+  if (isWeatherRelated && !copy.includes("Terms apply")) {
     copy = `${copy} ${WEATHER_DISCLAIMER}`;
-    autoFixes.push("Appended weather disclaimer");
-  }
-
-  const mentionsAlcohol =
-    /\b(beer|wine|alcohol|brew|cocktail|spirits|21\+)\b/i.test(copy + headline);
-
-  if (mentionsAlcohol && !copy.toLowerCase().includes("21+")) {
-    copy = `${copy} ${ALCOHOL_DISCLAIMER}`;
-    autoFixes.push("Appended alcohol compliance disclaimer");
+    autoFixes.push("Appended weather/promo disclaimer");
   }
 
   const passed =

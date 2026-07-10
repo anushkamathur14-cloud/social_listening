@@ -1,39 +1,43 @@
 import { config } from "./config";
 
-/** F&B client brand — snacks, food, beer & beverages */
+/** Uber — user acquisition for mobility, food & travel */
 export const brand = {
   name: config.brandName,
-  tagline: "Snacks, meals & craft beer — delivered when you need them",
-  initials: config.brandName
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase(),
-  categories: ["snacks", "ready-to-eat meals", "craft beer", "beverages", "game-day bundles"],
+  tagline: "Go anywhere. Get anything. Move your city.",
+  initials: "U",
+  verticals: ["Uber Rides", "Uber Eats", "Uber Travel", "Uber Reserve"],
   personas: [
-    { id: "game_day_fan", label: "Game Day Fan" },
-    { id: "airport_traveler", label: "Airport Traveler" },
-    { id: "comfort_food_lover", label: "Comfort Food Lover" },
+    { id: "daily_commuter", label: "Daily Commuter" },
+    { id: "foodie", label: "Foodie" },
+    { id: "traveler", label: "Traveler" },
   ] as const,
-  products: {
-    stormKit: "Storm Comfort Box — soups, chips, beer & candles",
-    airportPack: "Gate Delay Pack — snacks, beer & soft drinks",
-    trendBundle: "Trending Snack Bundle — what's hot in your city",
-    redditPick: "Community Cravings Box — inspired by local threads",
-    gameDay: "Game Day Bundle — wings, chips, beer 6-pack",
+  offers: {
+    ridesFirstTrip: "First ride up to $5 off for new riders",
+    eatsNewUser: "Uber Eats — $0 delivery fee on first 3 orders",
+    airportPickup: "Airport pickup — 15% off first trip to terminal",
+    stormSafety: "Storm alert — ride with Uber, skip the drive",
+    trendFood: "Trending restaurants on Uber Eats — new user promo",
+    redditLocal: "Your city is talking — first trip offer inside",
   },
-  alcoholDisclaimer: "Must be 21+ to purchase alcohol. Drink responsibly.",
+  promoDisclaimer: "Promo for new users only. Terms apply. Availability varies by city.",
 };
 
-export const BRAND_SYSTEM_PROMPT = `You are a senior paid social creative director for "${brand.name}", an F&B delivery brand selling snacks, ready-to-eat food, craft beer, and beverages.
+export const BRAND_SYSTEM_PROMPT = `You are a senior performance marketing creative director for Uber.
 
-Product catalog includes: ${brand.categories.join(", ")}.
+Goal: USER ACQUISITION — drive new sign-ups for the right Uber vertical based on real-time local signals.
+
+Verticals: ${brand.verticals.join(", ")}.
 Personas: ${brand.personas.map((p) => p.label).join(", ")}.
 
+Signal → vertical mapping:
+- Weather/storm → Uber Rides (safe alternative to driving) OR Uber Eats (stay in, order food)
+- Airport/traffic delays → Uber Rides / Uber Reserve to airport, traveler acquisition
+- Search trends → match trend to Uber Eats (food) or Uber Rides (travel/mobility)
+- Reddit/social → local conversation → relevant vertical + new-user promo
+
 Rules:
-- Tie every ad to the local signal (weather, delay, trend, Reddit thread) with a relevant food/beverage offer
-- Mention specific products (beer 6-packs, snack bundles, comfort food boxes)
-- Tone: appetizing, timely, casual — like a friend who knows what's good
-- Include responsible drinking note if mentioning beer/alcohol
-- No medical or guaranteed claims`;
+- Every ad is a user acquisition play with a clear promo (first ride, $0 delivery, etc.)
+- Mention the specific vertical (Uber Eats vs Uber Rides)
+- Tone: confident, convenient, urban — Uber brand voice
+- Include "Terms apply" or promo disclaimer when offering discounts
+- No guaranteed claims`;

@@ -9,7 +9,7 @@ const MOCK_WEATHER: Array<{
 }> = [
   {
     market: "NYC",
-    summary: "Severe thunderstorm warning — flash flooding expected",
+    summary: "Severe thunderstorm — ride demand & food delivery searches spiking",
     severity: "high",
   },
   {
@@ -19,7 +19,7 @@ const MOCK_WEATHER: Array<{
   },
   {
     market: "LAX",
-    summary: "Extreme heat advisory — cold beer & frozen treats in high demand",
+    summary: "Extreme heat — Uber Eats orders & ride-to-AC demand rising",
     severity: "high",
   },
   {

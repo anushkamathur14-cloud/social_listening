@@ -7,13 +7,13 @@ const MOCK_TRENDS: Array<{
   spikeRatio: number;
   market: Market;
 }> = [
-  { query: "craft beer delivery near me", spikeRatio: 3.2, market: "US" },
-  { query: "game day snack bundle", spikeRatio: 2.8, market: "US" },
-  { query: "NYC comfort food delivery storm", spikeRatio: 4.1, market: "NYC" },
-  { query: "Seattle beer and snacks delivery", spikeRatio: 3.0, market: "SEA" },
-  { query: "LA heat wave cold beer delivery", spikeRatio: 2.5, market: "LAX" },
-  { query: "Chicago winter soup delivery", spikeRatio: 2.1, market: "ORD" },
-  { query: "Miami hurricane snack prep", spikeRatio: 3.5, market: "MIA" },
+  { query: "uber eats promo code", spikeRatio: 3.4, market: "US" },
+  { query: "ride to airport app", spikeRatio: 2.9, market: "US" },
+  { query: "food delivery NYC storm", spikeRatio: 4.2, market: "NYC" },
+  { query: "uber eats seattle", spikeRatio: 3.1, market: "SEA" },
+  { query: "cheap ride to LAX", spikeRatio: 2.6, market: "LAX" },
+  { query: "uber chicago airport", spikeRatio: 2.3, market: "ORD" },
+  { query: "miami ride share new user", spikeRatio: 3.6, market: "MIA" },
   { query: "SF fog driving tips", spikeRatio: 2.3, market: "SFO" },
 ];
 

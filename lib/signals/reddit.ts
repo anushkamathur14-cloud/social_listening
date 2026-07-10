@@ -22,46 +22,46 @@ const MOCK_THREADS: Array<{
   market: Market;
 }> = [
   {
-    subreddit: "food",
-    title: "Best airport snacks when you're stuck for hours?",
+    subreddit: "travel",
+    title: "Best app for getting to ORD when flights are delayed?",
     snippet:
-      "ORD delay hit 3 hours. What do you order for delivery to the terminal? Need beer and something salty.",
+      "3-hour delay at O'Hare. Is Uber Reserve worth it for getting back to the terminal later? First time in Chicago.",
     score: 847,
     comments: 234,
     market: "ORD",
   },
   {
-    subreddit: "beer",
-    title: "Seattle craft beer delivery — who's fastest?",
+    subreddit: "Seattle",
+    title: "Uber Eats vs cooking during this storm — what's the move?",
     snippet:
-      "Storm rolling in, don't want to drive. Looking for IPA 6-packs delivered tonight in Capitol Hill.",
+      "Not leaving the house tonight. Best Uber Eats spots in Capitol Hill for delivery when it's pouring?",
     score: 956,
     comments: 312,
     market: "SEA",
   },
   {
     subreddit: "nyc",
-    title: "Comfort food recs for tonight's thunderstorm",
+    title: "Subway flooded — how are you getting around?",
     snippet:
-      "Subway flooded, staying in. What's your go-to delivery — soup, wings, beer? Need a solid combo.",
+      "Lines suspended. Switched to Uber Pool for commute. Any new rider promos worth using?",
     score: 1203,
     comments: 456,
     market: "NYC",
   },
   {
     subreddit: "LosAngeles",
-    title: "Heat wave snack & drink haul — what are you ordering?",
+    title: "Heat wave — Uber Eats or drive to pick up food?",
     snippet:
-      "108°F — stocked up on cold beer, sparkling water, and frozen margarita mix. What else?",
+      "108°F and don't want to get in the car. What's the best Uber Eats deal for new users in LA right now?",
     score: 623,
     comments: 189,
     market: "LAX",
   },
   {
     subreddit: "Miami",
-    title: "Game day spread ideas — feeding 8 people",
+    title: "Airport pickup MIA — Uber or taxi?",
     snippet:
-      "Dolphins game tomorrow. Need wings, sliders, chips, and a beer variety pack delivered by morning.",
+      "Flying in tomorrow. Heard Uber has airport pickup deals for new users. Anyone used it recently?",
     score: 734,
     comments: 201,
     market: "MIA",

@@ -99,7 +99,7 @@ export function CreativeCard({ events, onPublish }: CreativeCardProps) {
           <div key={`${event.id}-${creative.id}`} className="flex flex-col gap-2">
             <div className="rounded-xl border border-zinc-700 bg-white text-zinc-900 overflow-hidden shadow-lg">
               <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-200 bg-zinc-50">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white text-xs font-bold">
+                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white text-sm font-bold">
                   {brand.initials}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -149,7 +149,7 @@ export function CreativeCard({ events, onPublish }: CreativeCardProps) {
                     {creative.productOffer}
                   </p>
                 )}
-                <button className="w-full mt-1 rounded-md bg-indigo-600 text-white text-xs py-2 font-semibold">
+                <button className="w-full mt-1 rounded-md bg-black hover:bg-zinc-800 text-white text-xs py-2 font-semibold">
                   {creative.cta}
                 </button>
               </div>

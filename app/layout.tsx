@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bites & Brews — Signal-Led F&B Ads",
+  title: "Uber — Signal-Led User Acquisition",
   description:
-    "Real-time signal-driven ad pipeline for an F&B brand — snacks, food, beer & beverages.",
+    "Real-time signal-driven UA for Uber Rides, Uber Eats, and travel — detect, create, approve, publish.",
 };
 
 export default function RootLayout({

@@ -6,7 +6,7 @@ import { config } from "../config";
 import { getMarketLabel } from "../markets";
 import type { CreativeVariant, Market, Signal } from "../types";
 import { stampAttribution } from "./attribution";
-import { getStockImageUrl } from "./stock-images";
+import { getStockImageUrl, getUnsplashCredit } from "./stock-images";
 
 interface GeneratedCreative {
   persona: string;
@@ -57,7 +57,9 @@ function buildForChannel(
     imagePrompt: template.imagePrompt,
     imageUrl,
     productOffer: template.productOffer,
-    visualTreatment: template.visualTreatment,
+    visualTreatment: template.visualTreatment
+      ? `${template.visualTreatment} · ${getUnsplashCredit(signal.type)}`
+      : getUnsplashCredit(signal.type),
     specLabel: `${spec.label} · ${spec.format === "image" ? `${spec.imageWidth}×${spec.imageHeight}` : "text-only"}`,
     signalContext: summary,
     signalSummary: summary,
@@ -72,78 +74,98 @@ function templatesForSignal(signal: Signal): GeneratedCreative[] {
   const marketLabel = getMarketLabel(signal.market);
   const airport = (signal.payload.airport as string) ?? signal.market;
   const delay = delayMinutes(signal);
-  const topic = (signal.payload.topic as string) ?? "local food trend";
-  const beerNote = "21+ for beer.";
+  const topic = (signal.payload.topic as string) ?? "local mobility trend";
+  const terms = brand.promoDisclaimer;
 
   const byType: Record<string, GeneratedCreative[]> = {
     weather: [
       {
-        persona: "comfort_food_lover",
-        headline: "Storm night? Comfort food's here.",
-        copy: `${marketLabel} weather alert — curl up with our Storm Comfort Box: soups, kettle chips, craft beer & hot cocoa. Delivered in 45 min.`,
-        description: `${brand.products.stormKit}. Free delivery over $40.`,
-        cta: "Order Comfort Box",
-        productOffer: brand.products.stormKit,
-        visualTreatment: "Cozy spread: soup, chips, beer on rainy window sill",
-        imagePrompt: "Comfort food flat lay, stormy window, warm lighting",
+        persona: "daily_commuter",
+        headline: "Storm coming? Don't drive.",
+        copy: `${marketLabel} weather alert — new riders get up to $5 off your next Uber trip. Stay safe, skip the stress.`,
+        description: `${brand.offers.ridesFirstTrip}. ${terms}`,
+        cta: "Get Your First Ride",
+        productOffer: "Uber Rides · New user acquisition",
+        visualTreatment: "Rainy city street, car headlights — Unsplash",
+        imagePrompt: "Rainy urban street at night, ride-hailing mood",
       },
       {
-        persona: "game_day_fan",
-        headline: "Rain out? Party in.",
-        copy: `Game cancelled by weather in ${marketLabel}? Host indoors — wings, loaded nachos, beer 6-packs delivered before kickoff.`,
-        description: `${brand.products.gameDay}. ${beerNote}`,
-        cta: "Get Game Day Box",
-        productOffer: brand.products.gameDay,
-        visualTreatment: "Living room game setup with snacks and beer",
-        imagePrompt: "Game day snacks and beer on coffee table",
+        persona: "foodie",
+        headline: "Stay in. Uber Eats it.",
+        copy: `Bad weather in ${marketLabel}? New users — $0 delivery fee on your first 3 Uber Eats orders. Comfort food without leaving home.`,
+        description: brand.offers.eatsNewUser,
+        cta: "Order on Uber Eats",
+        productOffer: "Uber Eats · New user acquisition",
+        visualTreatment: "Food delivery bag at doorstep, rain — Unsplash",
+        imagePrompt: "Food delivery at apartment door, storm outside",
       },
     ],
     traffic: [
       {
-        persona: "airport_traveler",
-        headline: `${delay} min delay? Snacks en route.`,
-        copy: `Stuck at ${airport}? Our Gate Delay Pack hits your terminal — craft beer, trail mix, beef jerky & sparkling water. 45-min delivery.`,
-        description: `${brand.products.airportPack}. Code DELAY20 for 20% off. ${beerNote}`,
-        cta: "Order to Gate",
-        productOffer: brand.products.airportPack,
-        visualTreatment: "Traveler with snack bag and beer at airport gate",
-        imagePrompt: "Airport gate snack and beer delivery",
+        persona: "traveler",
+        headline: `${delay} min delay? Uber's ready.`,
+        copy: `Flight delayed at ${airport}? New riders — 15% off your first Uber trip to the terminal. Reliable pickup when travel gets messy.`,
+        description: `${brand.offers.airportPickup}. ${terms}`,
+        cta: "Book Airport Ride",
+        productOffer: "Uber Rides · Travel acquisition",
+        visualTreatment: "Airport terminal, traveler with phone — Unsplash",
+        imagePrompt: "Airport departure hall, traveler booking ride",
       },
     ],
     trends: [
       {
-        persona: "comfort_food_lover",
-        headline: "Your city can't stop searching this",
-        copy: `${marketLabel} is trending hard on snack bundles & craft beer. We stocked up — same-day delivery before it sells out.`,
-        description: brand.products.trendBundle,
-        cta: "Shop Trending",
-        productOffer: "Trending F&B Bundle — limited stock",
-        visualTreatment: "Craft beer and artisan snacks hero shot",
-        imagePrompt: "Trending snacks and craft beer flat lay",
+        persona: "foodie",
+        headline: "Your city is searching this",
+        copy: `${marketLabel} is spiking on food delivery searches. New to Uber Eats? $0 delivery on first 3 orders — trending restaurants near you.`,
+        description: brand.offers.trendFood,
+        cta: "Try Uber Eats",
+        productOffer: "Uber Eats · Trend-led UA",
+        visualTreatment: "Restaurant food spread — Unsplash",
+        imagePrompt: "Trending restaurant dishes, delivery context",
+      },
+      {
+        persona: "daily_commuter",
+        headline: "Everyone's riding today",
+        copy: `Mobility searches up in ${marketLabel}. First Uber trip up to $5 off — get there without the hassle.`,
+        description: brand.offers.ridesFirstTrip,
+        cta: "Ride with Uber",
+        productOffer: "Uber Rides · Trend-led UA",
+        visualTreatment: "City street at dusk — Unsplash",
+        imagePrompt: "Urban commute, city lights",
       },
     ],
     reddit: [
       {
-        persona: "game_day_fan",
-        headline: "Reddit's hungry. We're ready.",
-        copy: `"${topic.slice(0, 45)}" is blowing up in ${marketLabel}. ${brand.name} built a bundle for exactly this craving.`,
-        description: brand.products.redditPick,
-        cta: "Grab the Box",
-        productOffer: brand.products.redditPick,
-        visualTreatment: "Reddit thread fades into appetizing food spread",
-        imagePrompt: "Social thread to snack bundle product shot",
+        persona: "foodie",
+        headline: "Reddit's talking. We're listening.",
+        copy: `"${topic.slice(0, 45)}" trending in ${marketLabel}. Uber Eats — new users get $0 delivery on first 3 orders. Join the conversation.`,
+        description: brand.offers.redditLocal,
+        cta: "Get Uber Eats",
+        productOffer: "Uber Eats · Social-led UA",
+        visualTreatment: "Phone with food app, city backdrop — Unsplash",
+        imagePrompt: "Mobile food ordering in urban setting",
+      },
+      {
+        persona: "traveler",
+        headline: "Travel hack from your city",
+        copy: `Locals in ${marketLabel} are discussing travel headaches. New riders — first trip up to $5 off with Uber. ${terms}`,
+        description: brand.offers.ridesFirstTrip,
+        cta: "Sign Up & Ride",
+        productOffer: "Uber Rides · Social-led UA",
+        visualTreatment: "Traveler at airport — Unsplash",
+        imagePrompt: "Airport travel, smartphone ride booking",
       },
     ],
     social: [
       {
-        persona: "comfort_food_lover",
-        headline: `${marketLabel} is talking food`,
-        copy: `Local buzz = local flavors. ${brand.name} drops a limited snack & beer bundle matched to what's trending right now.`,
-        description: "48-hour signal-responsive F&B offer.",
-        cta: "Order Now",
-        productOffer: "Local Cravings Box — 48hr only",
-        visualTreatment: "City food scene with delivery bag",
-        imagePrompt: "Urban food delivery with snacks and beverages",
+        persona: "daily_commuter",
+        headline: `${marketLabel} is moving with Uber`,
+        copy: `Local buzz = real demand. New users — up to $5 off first ride or $0 delivery on Uber Eats. One app, your whole city.`,
+        description: brand.promoDisclaimer,
+        cta: "Download Uber",
+        productOffer: "Cross-vertical UA · Rides + Eats",
+        visualTreatment: "City skyline at night — Unsplash",
+        imagePrompt: "Urban mobility, city lights",
       },
     ],
   };
@@ -161,14 +183,14 @@ function mockCreatives(
 
   for (const channel of channels) {
     const spec = CHANNEL_MAP[channel];
-    for (const template of baseTemplates) {
+    for (const template of baseTemplates.slice(0, channel === "google_search" ? 1 : 2)) {
       if (spec.format === "text") {
         results.push(
           buildForChannel(signal, triggerId, channel, {
             ...template,
             copy: template.description ?? template.copy,
             description: template.productOffer,
-            cta: "Order Delivery",
+            cta: "Sign Up",
           })
         );
       } else {
@@ -207,15 +229,14 @@ export async function generateCreatives(
           role: "system",
           content: `${BRAND_SYSTEM_PROMPT}
 Return JSON: { "variants": [{ "channel", "persona", "headline", "copy", "description", "cta", "imagePrompt", "productOffer" }] }
-One variant per channel. Respect character limits.`,
+One UA variant per channel.`,
         },
         {
           role: "user",
           content: `Channels: ${channelSpecs}
 Signal: ${signal.type} in ${getMarketLabel(signal.market)}
 Context: ${summary}
-Topic: ${signal.payload.topic ?? "n/a"}
-Generate one F&B ad variant per channel.`,
+Goal: new user sign-up for the best-matched Uber vertical (Rides, Eats, or Travel).`,
         },
       ],
     });
@@ -248,7 +269,7 @@ export async function generateIncrementalVariant(
     ...base,
     id: nanoid(),
     headline: truncate(`${winningCreative.headline} v2`, CHANNEL_MAP[base.channel as keyof typeof CHANNEL_MAP].headlineMax),
-    copy: `Top F&B performer. ${base.copy}`,
+    copy: `Top UA variant. ${base.copy}`,
     signalContext: `Incremental winner from ${winningCreative.id}`,
     createdAt: new Date().toISOString(),
   });

@@ -132,10 +132,10 @@ export default function Dashboard() {
           <div className="flex flex-wrap items-center gap-3">
             <div>
             <h1 className="text-lg font-bold tracking-tight">
-              Bites & Brews — Signal-Led Ads
+              Uber — Signal-Led User Acquisition
             </h1>
             <p className="text-xs text-zinc-500">
-              F&B · Snacks, food & craft beer · Crawl → Create → Approve → Publish
+              Rides · Eats · Travel · New-user promos driven by live signals
             </p>
             </div>
 
